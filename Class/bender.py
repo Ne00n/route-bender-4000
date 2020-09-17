@@ -69,8 +69,8 @@ class Bender:
                 print("Route for",line['ip_dst'],"already exists")
                 continue
 
-            direct = subprocess.Popen(["fping", "-c5", line['ip_dst']], stdout=subprocess.PIPE,stderr=subprocess.PIPE).stderr.read().decode('utf-8')
-            if '100%' in direct:
+            direct = subprocess.Popen(["fping", "-c5", line['ip_dst']], stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+            if '100%' in direct.stderr.read().decode('utf-8'):
                 print("Target",line['ip_dst'],"not reachable, skipping")
                 continue
 
@@ -86,7 +86,7 @@ class Bender:
                 else:
                     print(result)
             latency.sort()
-            direct = self.getAvrg(direct)
+            direct = self.getAvrg(direct.stdout.read().decode('utf-8'))
             diff = direct - float(latency[0][0])
             if diff < 1 and diff > 0:
                 print("Difference less than 1ms, skipping",float(direct),"vs",float(latency[0][0]),"for",line['ip_dst'])
