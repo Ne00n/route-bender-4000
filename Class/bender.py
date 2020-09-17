@@ -28,9 +28,12 @@ class Bender:
         base = 400
         tables = re.findall("^([0-9]+)",self.cmd(['cat', '/etc/iproute2/rt_tables'],True), re.MULTILINE | re.DOTALL)
         inetList = re.findall("(10[0-9.]+?252\.[0-9]+)",self.cmd(['ip','addr','show','lo'],True), re.MULTILINE)
+        route = subprocess.Popen(["ip", "rule", "list","table","BENDER","all"], stdout=subprocess.PIPE,stderr=subprocess.PIPE).stdout.read().decode('utf-8')
         for server in nodes:
             lastByte = re.findall("^([0-9.]+)\.([0-9]+)",server, re.MULTILINE | re.DOTALL)
             node = str(base + int(lastByte[0][1]))
+            if not "BENDER" in route:
+                self.cmd('ip rule add from 0.0.0.0/0 table BENDER')
             if node not in tables:
                 self.cmd(["echo '"+node+" Node"+node+"' >> /etc/iproute2/rt_tables"])
             if "10.0.252."+lastByte[0][1] not in inetList:
@@ -45,7 +48,7 @@ class Bender:
         for ip,ms,loss in parsed:
             latency.append(ms)
         latency.sort()
-        return (float(latency[0]) + float(latency[1]) + float(latency[2])) / 3
+        return round((float(latency[0]) + float(latency[1]) + float(latency[2])) / 3,2)
 
     def run(self):
         global nodes,network
@@ -61,13 +64,13 @@ class Bender:
             if '172.16.' in line['ip_dst']: continue
             if '10.0.' in line['ip_dst']: continue
 
-            route = subprocess.Popen(["ip", "r", "get", line['ip_dst']], stdout=subprocess.PIPE,stderr=subprocess.PIPE).communicate()[0].decode('utf-8')
+            route = subprocess.Popen(["ip", "r", "get", line['ip_dst']], stdout=subprocess.PIPE,stderr=subprocess.PIPE).stdout.read().decode('utf-8')
             if 'vxlan1' in route:
                 print("Route for",line['ip_dst'],"already exists")
                 continue
 
             latency = []
-            direct = subprocess.Popen(["fping", "-c5", line['ip_dst']], stdout=subprocess.PIPE,stderr=subprocess.PIPE).communicate()[0].decode('utf-8')
+            direct = subprocess.Popen(["fping", "-c5", line['ip_dst']], stdout=subprocess.PIPE,stderr=subprocess.PIPE).stderr.read().decode('utf-8')
             for server in nodes:
                 if '100%' in direct:
                     print("Target",line['ip_dist'],"not reachable, skipping")
@@ -78,7 +81,7 @@ class Bender:
                 if parsed:
                     avrg = self.getAvrg(result.stdout.decode('utf-8'))
                     latency.append([avrg,lastByte[0][1]])
-                    print("Got",avrg,"ms","from",server)
+                    print("Got",str(avrg)+"ms","to",line['ip_dst'],"from",server)
                 else:
                     print(result)
             latency.sort()
@@ -89,5 +92,5 @@ class Bender:
             elif diff < 1:
                 print("Direct route is better, keeping it for",line['ip_dst'],"Lowest we got",float(latency[0][0]),"ms vs",int(direct),"ms direct")
             elif float(latency[0][0]) < int(direct):
-                print("Routed",line['ip_dst'],"via","10.0.251"+latency[0][1],"improved latency by",diff,"ms")
-                subprocess.run(['ip','route','add',line['ip_dst']+"/32",'via',"10.0.251"+latency[0][1],'dev',"vxlan1",'table','BENDER'])
+                print("Routed",line['ip_dst'],"via","10.0.251."+latency[0][1],"improved latency by",diff,"ms")
+                subprocess.run(['ip','route','add',line['ip_dst']+"/32",'via',"10.0.251."+latency[0][1],'dev',"vxlan1",'table','BENDER'])
