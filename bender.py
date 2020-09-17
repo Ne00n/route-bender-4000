@@ -5,5 +5,7 @@ print("Route Bender 4000")
 bender = Bender()
 if param == "run":
     bender.run()
+elif param == "clear":
+    bender.clear()
 else:
-    print("run")
+    print("run","clear")
