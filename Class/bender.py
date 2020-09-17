@@ -69,12 +69,13 @@ class Bender:
                 print("Route for",line['ip_dst'],"already exists")
                 continue
 
-            latency = []
             direct = subprocess.Popen(["fping", "-c5", line['ip_dst']], stdout=subprocess.PIPE,stderr=subprocess.PIPE).stderr.read().decode('utf-8')
+            if '100%' in direct:
+                print("Target",line['ip_dst'],"not reachable, skipping")
+                continue
+
+            latency = []
             for server in nodes:
-                if '100%' in direct:
-                    print("Target",line['ip_dist'],"not reachable, skipping")
-                    continue
                 lastByte = re.findall("^([0-9.]+)\.([0-9]+)",server, re.MULTILINE | re.DOTALL)
                 result = subprocess.run(["fping", "-c5", line['ip_dst'], "-S",server], stdout=subprocess.PIPE,stderr=subprocess.PIPE)
                 parsed = re.findall("([0-9.]+).*?([0-9]+.[0-9]).*?([0-9])% loss",result.stdout.decode('utf-8'), re.MULTILINE)
