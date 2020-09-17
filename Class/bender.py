@@ -1,4 +1,5 @@
 import subprocess, time, json, re
+from multiprocessing import Process
 
 nodes,network = [],[]
 
@@ -50,6 +51,45 @@ class Bender:
         latency.sort()
         return round((float(latency[0]) + float(latency[1]) + float(latency[2])) / 3,2)
 
+    def magic(self,line):
+        if '239.255.255.' in line['ip_dst']: exit()
+        if '224.0.0.' in line['ip_dst']: exit()
+        if '192.168.' in line['ip_dst']: exit()
+        if '172.16.' in line['ip_dst']: exit()
+        if '10.0.' in line['ip_dst']: exit()
+
+        route = subprocess.Popen(["ip", "r", "get", line['ip_dst']], stdout=subprocess.PIPE,stderr=subprocess.PIPE).stdout.read().decode('utf-8')
+        if 'vxlan1' in route:
+            print("Route for",line['ip_dst'],"already exists")
+            exit()
+
+        direct = subprocess.Popen(["fping", "-c5", line['ip_dst']], stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+        if '100%' in direct.stderr.read().decode('utf-8'):
+            print("Target",line['ip_dst'],"not reachable, skipping")
+            exit()
+
+        latency = []
+        for server in nodes:
+            lastByte = re.findall("^([0-9.]+)\.([0-9]+)",server, re.MULTILINE | re.DOTALL)
+            result = subprocess.run(["fping", "-c5", line['ip_dst'], "-S",server], stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+            parsed = re.findall("([0-9.]+).*?([0-9]+.[0-9]).*?([0-9])% loss",result.stdout.decode('utf-8'), re.MULTILINE)
+            if parsed:
+                avrg = self.getAvrg(result.stdout.decode('utf-8'))
+                latency.append([avrg,lastByte[0][1]])
+                print("Got",str(avrg)+"ms","to",line['ip_dst'],"from",server)
+            else:
+                print(result)
+        latency.sort()
+        direct = self.getAvrg(direct.stdout.read().decode('utf-8'))
+        diff = direct - float(latency[0][0])
+        if diff < 1 and diff > 0:
+            print("Difference less than 1ms, skipping",float(direct),"vs",float(latency[0][0]),"for",line['ip_dst'])
+        elif diff < 1:
+            print("Direct route is better, keeping it for",line['ip_dst'],"Lowest we got",float(latency[0][0]),"ms vs",int(direct),"ms direct")
+        elif float(latency[0][0]) < int(direct):
+            print("Routed",line['ip_dst'],"via","10.0.251."+latency[0][1],"improved latency by",diff,"ms")
+            subprocess.run(['ip','route','add',line['ip_dst']+"/32",'via',"10.0.251."+latency[0][1],'dev',"vxlan1",'table','BENDER'])
+
     def run(self):
         global nodes,network
         self.prepare()
@@ -57,41 +97,6 @@ class Bender:
         for row in network.split('\n'):
             if row.strip() == "": continue
             line = json.loads(row)
-
-            if '239.255.255.' in line['ip_dst']: continue
-            if '224.0.0.' in line['ip_dst']: continue
-            if '192.168.' in line['ip_dst']: continue
-            if '172.16.' in line['ip_dst']: continue
-            if '10.0.' in line['ip_dst']: continue
-
-            route = subprocess.Popen(["ip", "r", "get", line['ip_dst']], stdout=subprocess.PIPE,stderr=subprocess.PIPE).stdout.read().decode('utf-8')
-            if 'vxlan1' in route:
-                print("Route for",line['ip_dst'],"already exists")
-                continue
-
-            direct = subprocess.Popen(["fping", "-c5", line['ip_dst']], stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-            if '100%' in direct.stderr.read().decode('utf-8'):
-                print("Target",line['ip_dst'],"not reachable, skipping")
-                continue
-
-            latency = []
-            for server in nodes:
-                lastByte = re.findall("^([0-9.]+)\.([0-9]+)",server, re.MULTILINE | re.DOTALL)
-                result = subprocess.run(["fping", "-c5", line['ip_dst'], "-S",server], stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-                parsed = re.findall("([0-9.]+).*?([0-9]+.[0-9]).*?([0-9])% loss",result.stdout.decode('utf-8'), re.MULTILINE)
-                if parsed:
-                    avrg = self.getAvrg(result.stdout.decode('utf-8'))
-                    latency.append([avrg,lastByte[0][1]])
-                    print("Got",str(avrg)+"ms","to",line['ip_dst'],"from",server)
-                else:
-                    print(result)
-            latency.sort()
-            direct = self.getAvrg(direct.stdout.read().decode('utf-8'))
-            diff = direct - float(latency[0][0])
-            if diff < 1 and diff > 0:
-                print("Difference less than 1ms, skipping",float(direct),"vs",float(latency[0][0]),"for",line['ip_dst'])
-            elif diff < 1:
-                print("Direct route is better, keeping it for",line['ip_dst'],"Lowest we got",float(latency[0][0]),"ms vs",int(direct),"ms direct")
-            elif float(latency[0][0]) < int(direct):
-                print("Routed",line['ip_dst'],"via","10.0.251."+latency[0][1],"improved latency by",diff,"ms")
-                subprocess.run(['ip','route','add',line['ip_dst']+"/32",'via',"10.0.251."+latency[0][1],'dev',"vxlan1",'table','BENDER'])
+            p = Process(target=self.magic, args=([line]))
+            p.start()
+            print("Launched",line['ip_dst'])
