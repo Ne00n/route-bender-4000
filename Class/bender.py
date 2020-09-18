@@ -4,10 +4,10 @@ from multiprocessing import Process
 nodes,network = [],[]
 
 class Bender:
-    def __init__(self):
+    def __init__(self,path):
         global nodes,network
         print("Loading config")
-        with open('nodes.json') as handle:
+        with open(path+'/nodes.json') as handle:
             nodes = json.loads(handle.read())
         print("Loading pmacct")
         with open('/tmp/pmacct_avg.json', 'r') as f:
