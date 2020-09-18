@@ -1,6 +1,8 @@
 Who needs BGP when you got Route Bender 4000<br />
 JUST BEND YOUR WAY DoWN YOUr DESTINY
 
+Addon for: https://github.com/Ne00n/pipe-builder-3000/ </br>
+
 **Why**<br />
 Getting lower latency while gaming online
 
@@ -9,7 +11,7 @@ Getting lower latency while gaming online
 
 **Prepare**<br />
 echo '333 BENDER' >> /etc/iproute2/rt_tables<br />
-rename nodes.example.json to nodes.json
+Rename hosts.example.json to hosts.json and fill it up<br />
 
 ```
 iptables -t nat -A POSTROUTING -o vxlan1 -j MASQUERADE
