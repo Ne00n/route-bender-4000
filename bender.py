@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 from Class.bender import Bender
 import sys, os
 path = os.path.dirname(os.path.realpath(__file__))
