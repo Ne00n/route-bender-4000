@@ -100,3 +100,11 @@ class Bender:
             p = Process(target=self.magic, args=([line]))
             p.start()
             print("Launched",line['ip_dst'])
+        for server in nodes:
+            lastByte = re.findall("^([0-9.]+)\.([0-9]+)",server, re.MULTILINE | re.DOTALL)
+            node = subprocess.Popen(["fping", "-c3", "10.0.251."+lastByte[0][1]], stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+            if '100%' in node.stderr.read().decode('utf-8'):
+                routes = subprocess.Popen(["ip","route","show","table","BENDER","via","10.0.251."+lastByte[0][1]], stdout=subprocess.PIPE,stderr=subprocess.PIPE).stdout.read().decode('utf-8')
+                parsed = re.findall("^([0-9.]+)",routes, re.MULTILINE | re.DOTALL)
+                for entry in parsed:
+                    subprocess.run(['ip','route','del',entry+"/32",'via',"10.0.251."+lastByte[0][1],'dev',"vxlan1",'table','BENDER'])
