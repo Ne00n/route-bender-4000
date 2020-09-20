@@ -13,23 +13,21 @@ class Bender:
         with open('/tmp/pmacct_avg.json', 'r') as f:
             network = f.read()
 
-    def cmd(self,command,interactive=False):
-        if interactive == True:
-            return subprocess.check_output(command).decode("utf-8")
-        else:
-            subprocess.call(command, shell=True)
+    def cmd(self,cmd):
+        p = subprocess.run(cmd, stdin=None, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+        return [p.stdout.decode('utf-8'),p.stderr.decode('utf-8')]
 
     def clear(self):
         print("Flushing Routing Table...")
-        subprocess.run(['ip', 'route', 'flush','table','BENDER'])
+        self.cmd('ip route flush table BENDER')
 
     def prepare(self):
         global nodes
         print("Prepare")
         base = 400
-        tables = re.findall("^([0-9]+)",self.cmd(['cat', '/etc/iproute2/rt_tables'],True), re.MULTILINE | re.DOTALL)
-        inetList = re.findall("(10[0-9.]+?252\.[0-9]+)",self.cmd(['ip','addr','show','lo'],True), re.MULTILINE)
-        route = subprocess.Popen(["ip", "rule", "list","table","BENDER","all"], stdout=subprocess.PIPE,stderr=subprocess.PIPE).stdout.read().decode('utf-8')
+        tables = re.findall("^([0-9]+)",self.cmd('cat /etc/iproute2/rt_tables')[0], re.MULTILINE | re.DOTALL)
+        inetList = re.findall("(10[0-9.]+?252\.[0-9]+)",self.cmd('ip addr show lo')[0], re.MULTILINE)
+        route = self.cmd("ip rule list table BENDER all")[0]
         for server in nodes:
             lastByte = re.findall("^([0-9.]+)\.([0-9]+)",server, re.MULTILINE | re.DOTALL)
             node = str(base + int(lastByte[0][1]))
@@ -44,43 +42,37 @@ class Bender:
             self.cmd('ip route add default via 10.0.251.'+lastByte[0][1]+' table Node'+node)
 
     def getAvrg(self,fping):
-        parsed = re.findall("([0-9.]+).*?([0-9]+.[0-9]).*?([0-9])% loss",fping, re.MULTILINE)
         latency = []
+        parsed = re.findall("([0-9.]+).*?([0-9]+.[0-9]).*?([0-9])% loss",fping, re.MULTILINE)
         for ip,ms,loss in parsed:
             latency.append(ms)
         latency.sort()
         return round((float(latency[0]) + float(latency[1]) + float(latency[2])) / 3,2)
 
     def magic(self,line):
-        if '239.255.255.' in line['ip_dst']: exit()
-        if '224.0.0.' in line['ip_dst']: exit()
-        if '192.168.' in line['ip_dst']: exit()
-        if '172.16.' in line['ip_dst']: exit()
-        if '10.0.' in line['ip_dst']: exit()
-
-        route = subprocess.Popen(["ip", "r", "get", line['ip_dst']], stdout=subprocess.PIPE,stderr=subprocess.PIPE).stdout.read().decode('utf-8')
+        route = self.cmd("ip r get "+line['ip_dst'])[0]
         if 'vxlan1' in route:
-            print("Route for",line['ip_dst'],"already exists")
+            print(line['ip_dst'],"route already exists")
             exit()
 
-        direct = subprocess.Popen(["fping", "-c5", line['ip_dst']], stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-        if '100%' in direct.stderr.read().decode('utf-8'):
-            print("Target",line['ip_dst'],"not reachable, skipping")
+        direct = self.cmd("fping -c5 "+line['ip_dst'])
+        if '100%' in direct[1]:
+            print(line['ip_dst'],"not reachable, skipping")
             exit()
 
         latency = []
         for server in nodes:
             lastByte = re.findall("^([0-9.]+)\.([0-9]+)",server, re.MULTILINE | re.DOTALL)
-            result = subprocess.run(["fping", "-c5", line['ip_dst'], "-S",server], stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-            parsed = re.findall("([0-9.]+).*?([0-9]+.[0-9]).*?([0-9])% loss",result.stdout.decode('utf-8'), re.MULTILINE)
+            result = self.cmd("fping -c5 "+line['ip_dst']+" -S "+server)[0]
+            parsed = re.findall("([0-9.]+).*?([0-9]+.[0-9]).*?([0-9])% loss",result, re.MULTILINE)
             if parsed:
-                avrg = self.getAvrg(result.stdout.decode('utf-8'))
+                avrg = self.getAvrg(result)
                 latency.append([avrg,lastByte[0][1]])
                 print("Got",str(avrg)+"ms","to",line['ip_dst'],"from",server)
             else:
-                print(result)
+                print(line['ip_dst']+" is not reachable via "+server)
         latency.sort()
-        direct = self.getAvrg(direct.stdout.read().decode('utf-8'))
+        direct = self.getAvrg(direct[0])
         diff = direct - float(latency[0][0])
         if diff < 1 and diff > 0:
             print("Difference less than 1ms, skipping",float(direct),"vs",float(latency[0][0]),"for",line['ip_dst'])
@@ -88,7 +80,7 @@ class Bender:
             print("Direct route is better, keeping it for",line['ip_dst'],"Lowest we got",float(latency[0][0]),"ms vs",int(direct),"ms direct")
         elif float(latency[0][0]) < int(direct):
             print("Routed",line['ip_dst'],"via","10.0.251."+latency[0][1],"improved latency by",diff,"ms")
-            subprocess.run(['ip','route','add',line['ip_dst']+"/32",'via',"10.0.251."+latency[0][1],'dev',"vxlan1",'table','BENDER'])
+            self.cmd('ip route add '+line['ip_dst']+"/32 via 10.0.251."+latency[0][1]+" dev vxlan1 table BENDER")
 
     def run(self):
         global nodes,network
@@ -97,14 +89,19 @@ class Bender:
         for row in network.split('\n'):
             if row.strip() == "": continue
             line = json.loads(row)
+            if '239.255.255.' in line['ip_dst']: continue
+            if '224.0.0.' in line['ip_dst']: continue
+            if '192.168.' in line['ip_dst']: continue
+            if '172.16.' in line['ip_dst']: continue
+            if '10.0.' in line['ip_dst']: continue
             p = Process(target=self.magic, args=([line]))
             p.start()
             print("Launched",line['ip_dst'])
         for server in nodes:
             lastByte = re.findall("^([0-9.]+)\.([0-9]+)",server, re.MULTILINE | re.DOTALL)
-            node = subprocess.Popen(["fping", "-c3", "10.0.251."+lastByte[0][1]], stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-            if '100%' in node.stderr.read().decode('utf-8'):
-                routes = subprocess.Popen(["ip","route","show","table","BENDER","via","10.0.251."+lastByte[0][1]], stdout=subprocess.PIPE,stderr=subprocess.PIPE).stdout.read().decode('utf-8')
+            direct = self.cmd('fping -c3 10.0.251.'+lastByte[0][1])[1]
+            if '100%' in direct:
+                routes = self.cmd('ip route show table BENDER via 10.0.251.'+lastByte[0][1])[0]
                 parsed = re.findall("^([0-9.]+)",routes, re.MULTILINE | re.DOTALL)
                 for entry in parsed:
-                    subprocess.run(['ip','route','del',entry+"/32",'via',"10.0.251."+lastByte[0][1],'dev',"vxlan1",'table','BENDER'])
+                    self.cmd('ip route del '+entry+'/32 via 10.0.251.'+lastByte[0][1]+' dev vxlan1 table BENDER')
