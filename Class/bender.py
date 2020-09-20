@@ -55,10 +55,21 @@ class Bender:
             print(line['ip_dst'],"route already exists")
             exit()
 
+        origin = 0
         direct = self.cmd("fping -c5 "+line['ip_dst'])
         if '100%' in direct[1]:
-            print(line['ip_dst'],"not reachable, skipping")
-            exit()
+            print(line['ip_dst'],"not reachable, trying to MTR")
+            result = self.cmd('mtr '+line['ip_dst']+' --report --report-cycles 4 --no-dns')
+            parsed = re.findall("-- ([0-9.]+)",result[0], re.MULTILINE)
+            lastIP = parsed[len(parsed) -1]
+            if lastIP != "???":
+                direct = self.cmd("fping -c5 "+lastIP)
+            if '100%' in direct[1]:
+                print(line['ip_dst'],"("+lastIP+") not reachable, skipping")
+                exit()
+            else:
+                origin = line['ip_dst']
+                line['ip_dst'] = lastIP
 
         latency = []
         for server in nodes:
@@ -80,7 +91,10 @@ class Bender:
             print("Direct route is better, keeping it for",line['ip_dst'],"Lowest we got",float(latency[0][0]),"ms vs",int(direct),"ms direct")
         elif float(latency[0][0]) < int(direct):
             print("Routed",line['ip_dst'],"via","10.0.251."+latency[0][1],"improved latency by",diff,"ms")
-            self.cmd('ip route add '+line['ip_dst']+"/32 via 10.0.251."+latency[0][1]+" dev vxlan1 table BENDER")
+            if origin == 0:
+                self.cmd('ip route add '+line['ip_dst']+"/32 via 10.0.251."+latency[0][1]+" dev vxlan1 table BENDER")
+            else:
+                self.cmd('ip route add '+origin+"/32 via 10.0.251."+latency[0][1]+" dev vxlan1 table BENDER")
 
     def run(self):
         global nodes,network
