@@ -84,16 +84,22 @@ class Bender:
 
     def run(self):
         global nodes,network
+        ips = []
         self.prepare()
         print("Launching")
         for row in network.split('\n'):
             if row.strip() == "": continue
             line = json.loads(row)
+            #Filter Local/Multicast traffic
             if '239.255.255.' in line['ip_dst']: continue
             if '224.0.0.' in line['ip_dst']: continue
             if '192.168.' in line['ip_dst']: continue
             if '172.16.' in line['ip_dst']: continue
             if '10.0.' in line['ip_dst']: continue
+            #Filter double entries
+            if line['ip_dst'] in ips: continue
+            ips.append(line['ip_dst'])
+            #Lets go bending
             p = Process(target=self.magic, args=([line]))
             p.start()
             print("Launched",line['ip_dst'])
