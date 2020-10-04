@@ -113,6 +113,8 @@ class Bender:
             #Filter double entries
             if line['ip_dst'] in ips: continue
             ips.append(line['ip_dst'])
+            #Filter less than 500 bytes
+            if line['bytes'] < 500: continue
             #Lets go bending
             p = Process(target=self.magic, args=([line]))
             p.start()
