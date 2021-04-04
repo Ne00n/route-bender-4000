@@ -7,7 +7,7 @@ class Bender:
     def __init__(self,path):
         global nodes, config, asndb, network
         print("Loading asn")
-        asndb = pyasn.pyasn('asn.dat')
+        asndb = pyasn.pyasn(path+'/asn.dat')
         print("Loading nodes")
         with open(path+'/nodes.json') as handle:
             nodes = json.loads(handle.read())
