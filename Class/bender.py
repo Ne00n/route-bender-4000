@@ -42,9 +42,9 @@ class Bender:
                 self.cmd(["echo '"+node+" Node"+node+"' >> /etc/iproute2/rt_tables"])
             if "10.0.252."+lastByte[0][1] not in inetList:
                 self.cmd("ip addr add 10.0.252."+lastByte[0][1]+"/32 dev lo")
-                self.cmd('ip route flush table Node'+node)
-                self.cmd('ip rule add from 10.0.252.'+lastByte[0][1]+'/32 table Node'+node)
-                self.cmd('ip route add default via 10.0.251.'+lastByte[0][1]+' table Node'+node)
+            self.cmd('ip route flush table Node'+node)
+            self.cmd('ip rule add from 10.0.252.'+lastByte[0][1]+'/32 table Node'+node)
+            self.cmd('ip route add default via 10.0.251.'+lastByte[0][1]+' table Node'+node)
 
     def getAvrg(self,fping):
         latency = []
