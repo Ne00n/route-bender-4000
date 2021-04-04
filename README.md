@@ -12,7 +12,6 @@ Getting lower latency while gaming online
 **Prepare**<br />
 echo '333 BENDER' >> /etc/iproute2/rt_tables<br />
 Rename hosts.example.json to hosts.json and fill it up<br />
-
 ```
 iptables -t nat -A POSTROUTING -o vxlan1 -j MASQUERADE
 iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
@@ -20,10 +19,17 @@ iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
 
 **Dependencies**<br />
 ```
-apt-get install -y pmacct python3
+apt-get install -y pmacct python3 python3-pip
+pip3 install pyasn
 ```
 
 **Usage**<br />
 ```
 python3 bender.py
+```
+
+**Update asn data**
+```
+pyasn_util_download.py --latest
+pyasn_util_convert.py --single <Downloaded RIB File> asn.dat
 ```

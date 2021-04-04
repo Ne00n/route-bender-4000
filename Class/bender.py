@@ -1,14 +1,19 @@
-import subprocess, time, json, re
+import subprocess, pyasn, time, json, re
 from multiprocessing import Process
 
 nodes,network = [],[]
 
 class Bender:
     def __init__(self,path):
-        global nodes,network
-        print("Loading config")
+        global nodes, config, asndb, network
+        print("Loading asn")
+        asndb = pyasn.pyasn('asn.dat')
+        print("Loading nodes")
         with open(path+'/nodes.json') as handle:
             nodes = json.loads(handle.read())
+        print("Loading config")
+        with open(path+'/config.json') as handle:
+            config = json.loads(handle.read())
         print("Loading pmacct")
         with open('/tmp/pmacct_avg.json', 'r') as f:
             network = f.read()
@@ -90,11 +95,19 @@ class Bender:
         elif diff < 1:
             print("Direct route is better, keeping it for",line['ip_dst'],"Lowest we got",float(latency[0][0]),"ms vs",int(direct),"ms direct")
         elif float(latency[0][0]) < int(direct):
-            print("Routed",line['ip_dst'],"via","10.0.251."+latency[0][1],"improved latency by",diff,"ms")
-            if origin == 0:
-                self.cmd('ip route add '+line['ip_dst']+"/32 via 10.0.251."+latency[0][1]+" dev vxlan1 table BENDER")
-            else:
+            if origin == 0: origin = line['ip_dst']
+            subnet = "/32"
+            asndata = asndb.lookup(origin)
+            for asn,settings in config['ASN'].items():
+                if int(asn) == int(asndata[0]):
+                    print("Found ASN Match")
+                    subnet = settings['route']
+            if subnet == "/32":
                 self.cmd('ip route add '+origin+"/32 via 10.0.251."+latency[0][1]+" dev vxlan1 table BENDER")
+            else:
+                origin = '.'.join(origin.split('.')[:-1]+["0"])
+                self.cmd('ip route add '+origin+subnet+" via 10.0.251."+latency[0][1]+" dev vxlan1 table BENDER")
+            print("Routed",line['ip_dst'],"via","10.0.251."+latency[0][1],"improved latency by",diff,"ms")
 
     def run(self):
         global nodes,network
@@ -124,6 +137,6 @@ class Bender:
             direct = self.cmd('fping -c3 10.0.251.'+lastByte[0][1])[1]
             if '100%' in direct:
                 routes = self.cmd('ip route show table BENDER via 10.0.251.'+lastByte[0][1])[0]
-                parsed = re.findall("^([0-9.]+)",routes, re.MULTILINE | re.DOTALL)
+                parsed = re.findall("^([0-9.]+\/[0-9]+)",routes, re.MULTILINE | re.DOTALL)
                 for entry in parsed:
-                    self.cmd('ip route del '+entry+'/32 via 10.0.251.'+lastByte[0][1]+' dev vxlan1 table BENDER')
+                    self.cmd('ip route del '+entry+' via 10.0.251.'+lastByte[0][1]+' dev vxlan1 table BENDER')
