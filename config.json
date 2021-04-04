@@ -1,6 +1,7 @@
 {
   "ASN":{
     "57976":{"ignore":"false","route":"/24"},
+    "32590":{"ignore":"false","route":"/24"},
     "16509":{"ignore":"false","route":"/24"},
     "15169":{"ignore":"false","route":"/24"},
     "6507":{"ignore":"false","route":"/24"}
