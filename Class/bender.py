@@ -5,18 +5,17 @@ nodes,network = [],[]
 
 class Bender:
     def __init__(self,path):
-        global nodes, config, asndb, network
         print("Loading asn")
-        asndb = pyasn.pyasn(path+'/asn.dat')
+        self.asndb = pyasn.pyasn(path+'/asn.dat')
         print("Loading nodes")
         with open(path+'/nodes.json') as handle:
-            nodes = json.loads(handle.read())
+            self.nodes = json.loads(handle.read())
         print("Loading config")
         with open(path+'/config.json') as handle:
-            config = json.loads(handle.read())
+            self.config = json.loads(handle.read())
         print("Loading pmacct")
         with open('/tmp/pmacct_avg.json', 'r') as f:
-            network = f.read()
+            self.network = f.read()
 
     def cmd(self,cmd):
         p = subprocess.run(cmd, stdin=None, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
@@ -27,13 +26,12 @@ class Bender:
         self.cmd('ip route flush table BENDER')
 
     def prepare(self):
-        global nodes
         print("Prepare")
         base = 400
         tables = re.findall("^([0-9]+)",self.cmd('cat /etc/iproute2/rt_tables')[0], re.MULTILINE | re.DOTALL)
         inetList = re.findall("(10[0-9.]+?252\.[0-9]+)",self.cmd('ip addr show lo')[0], re.MULTILINE)
         route = self.cmd("ip rule list table BENDER all")[0]
-        for server in nodes:
+        for server in self.nodes:
             lastByte = re.findall("^([0-9.]+)\.([0-9]+)",server, re.MULTILINE | re.DOTALL)
             node = str(base + int(lastByte[0][1]))
             if not "BENDER" in route:
@@ -77,7 +75,7 @@ class Bender:
                 line['ip_dst'] = lastIP
 
         latency = []
-        for server in nodes:
+        for server in self.nodes:
             lastByte = re.findall("^([0-9.]+)\.([0-9]+)",server, re.MULTILINE | re.DOTALL)
             result = self.cmd("fping -c5 "+line['ip_dst']+" -S "+server)[0]
             parsed = re.findall("([0-9.]+).*?([0-9]+.[0-9]).*?([0-9])% loss",result, re.MULTILINE)
@@ -97,8 +95,8 @@ class Bender:
         elif float(latency[0][0]) < int(direct):
             if origin == 0: origin = line['ip_dst']
             subnet = "/32"
-            asndata = asndb.lookup(origin)
-            for asn,settings in config['ASN'].items():
+            asndata = self.asndb.lookup(origin)
+            for asn,settings in self.config['ASN'].items():
                 if int(asn) == int(asndata[0]):
                     print("Found ASN Match")
                     subnet = settings['route']
@@ -110,11 +108,10 @@ class Bender:
             print("Routed",line['ip_dst'],"via","10.0.251."+latency[0][1],"improved latency by",diff,"ms")
 
     def run(self):
-        global nodes,network
         ips = []
         self.prepare()
         print("Launching")
-        for row in network.split('\n'):
+        for row in self.network.split('\n'):
             if row.strip() == "": continue
             line = json.loads(row)
             #Filter Local/Multicast traffic
@@ -123,16 +120,16 @@ class Bender:
             if '192.168.' in line['ip_dst']: continue
             if '172.16.' in line['ip_dst']: continue
             if '10.0.' in line['ip_dst']: continue
+            #Filter ports
+            if any(line['port_dst'] in port for port in self.config['ignorePorts']): continue
             #Filter double entries
             if line['ip_dst'] in ips: continue
             ips.append(line['ip_dst'])
-            #Filter less than 500 bytes
-            if line['bytes'] < 500: continue
             #Lets go bending
             p = Process(target=self.magic, args=([line]))
             p.start()
             print("Launched",line['ip_dst'])
-        for server in nodes:
+        for server in self.nodes:
             lastByte = re.findall("^([0-9.]+)\.([0-9]+)",server, re.MULTILINE | re.DOTALL)
             direct = self.cmd('fping -c3 10.0.251.'+lastByte[0][1])[1]
             if '100%' in direct:
