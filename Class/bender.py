@@ -88,9 +88,9 @@ class Bender:
         latency.sort()
         direct = self.getAvrg(direct[0])
         diff = direct - float(latency[0][0])
-        if diff < 1 and diff > 0:
-            print("Difference less than 1ms, skipping",float(direct),"vs",float(latency[0][0]),"for",line['ip_dst'])
-        elif diff < 1:
+        if diff < 2 and diff > 0:
+            print("Difference less than 2ms, skipping",float(direct),"vs",float(latency[0][0]),"for",line['ip_dst'])
+        elif diff < 2:
             print("Direct route is better, keeping it for",line['ip_dst'],"Lowest we got",float(latency[0][0]),"ms vs",int(direct),"ms direct")
         elif float(latency[0][0]) < int(direct):
             if origin == 0: origin = line['ip_dst']
