@@ -99,7 +99,7 @@ class Bender:
         latency,queue,outQueue,count = [],Queue(),Queue(),0
         for server in self.nodes:
             queue.put({"server":server,"ip":line['ip_dst']})
-        threads = [Thread(target=self.fpingWorker, args=(queue,outQueue,)) for _ in range(6)]
+        threads = [Thread(target=self.fpingWorker, args=(queue,outQueue,)) for _ in range(4)]
         for thread in threads:
             thread.start()
         while len(self.nodes) != count:
@@ -168,7 +168,7 @@ class Bender:
             if line['ip_dst'] in ips: continue
             ips.append(line['ip_dst'])
             #Lets go bending
-            threads.append(Thread(target=self.magic, args=([line])))
+            if len(threads <= 15): threads.append(Thread(target=self.magic, args=([line])))
             if line['ip_dst'] not in self.ignore: self.ignore[line['ip_dst']] = {}
             self.ignore[line['ip_dst']] = int(datetime.now().timestamp()) + random.randint(600, 1500)
             print("Launched",line['ip_dst'])
