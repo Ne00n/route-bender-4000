@@ -1,4 +1,5 @@
 import subprocess, random, pyasn, time, json, re, os
+from multiprocessing import Queue
 from datetime import datetime
 from threading import Thread
 
@@ -60,6 +61,19 @@ class Bender:
         latency.sort()
         return round((float(latency[0]) + float(latency[1]) + float(latency[2])) / 3,2)
 
+    def fpingSource(self,server,ip):
+        lastByte = re.findall("^([0-9.]+)\.([0-9]+)",server, re.MULTILINE | re.DOTALL)
+        result = self.cmd("fping -c5 "+ip+" -S "+server)[0]
+        parsed = re.findall("([0-9.]+).*?([0-9]+.[0-9]).*?([0-9])% loss",result, re.MULTILINE)
+        return parsed,result,lastByte
+
+    def fpingWorker(self,queue,outQueue):
+        while queue.qsize() > 0 :
+            data = queue.get()
+            parsed,result,lastByte = self.fpingSource(data['server'],data['ip'])
+            outQueue.put({"parsed":parsed,"result":result,"lastByte":lastByte,"ip":data['ip'],"server":data['server']})
+        print("Worker closed")
+
     def magic(self,line):
         route = self.cmd("ip r get "+line['ip_dst'])[0]
         if 'vxlan1' in route:
@@ -82,17 +96,25 @@ class Bender:
                 origin = line['ip_dst']
                 line['ip_dst'] = lastIP
 
-        latency = []
+        latency,queue,outQueue,count = [],Queue(),Queue(),0
         for server in self.nodes:
-            lastByte = re.findall("^([0-9.]+)\.([0-9]+)",server, re.MULTILINE | re.DOTALL)
-            result = self.cmd("fping -c5 "+line['ip_dst']+" -S "+server)[0]
-            parsed = re.findall("([0-9.]+).*?([0-9]+.[0-9]).*?([0-9])% loss",result, re.MULTILINE)
-            if parsed:
-                avrg = self.getAvrg(result)
-                latency.append([avrg,lastByte[0][1]])
-                print("Got",str(avrg)+"ms","to",line['ip_dst'],"from",server)
-            else:
-                print(line['ip_dst']+" is not reachable via "+server)
+            queue.put({"server":server,"ip":line['ip_dst']})
+        threads = [Thread(target=self.fpingWorker, args=(queue,outQueue,)) for _ in range(6)]
+        for thread in threads:
+            thread.start()
+        while len(self.nodes) != count:
+            while not outQueue.empty():
+                data = outQueue.get()
+                if data['parsed']:
+                    avrg = self.getAvrg(data['result'])
+                    latency.append([avrg,data['lastByte'][0][1]])
+                    print("Got",str(avrg)+"ms","to",data['ip'],"from",data['server'])
+                else:
+                    print(line['ip_dst']+" is not reachable via "+data['server'])
+                count += 1
+            time.sleep(0.05)
+        for thread in threads:
+            thread.join()
         latency.sort()
         direct = self.getAvrg(direct[0])
         diff = direct - float(latency[0][0])
@@ -114,6 +136,16 @@ class Bender:
                 origin = '.'.join(origin.split('.')[:-1]+["0"])
                 self.cmd('ip route add '+origin+subnet+" via 10.0.251."+latency[0][1]+" dev vxlan1 table BENDER")
             print("Routed",line['ip_dst'],"via","10.0.251."+latency[0][1],"improved latency by",diff,"ms")
+
+    def checkNode(self,server):
+        lastByte = re.findall("^([0-9.]+)\.([0-9]+)",server, re.MULTILINE | re.DOTALL)
+        print("Checking if","10.0.251."+lastByte[0][1],"is alive")
+        direct = self.cmd('fping -c3 10.0.251.'+lastByte[0][1])[1]
+        if '100%' in direct:
+            routes = self.cmd('ip route show table BENDER via 10.0.251.'+lastByte[0][1])[0]
+            parsed = re.findall("^([0-9.]+\/[0-9]+)",routes, re.MULTILINE | re.DOTALL)
+            for entry in parsed:
+                self.cmd('ip route del '+entry+' via 10.0.251.'+lastByte[0][1]+' dev vxlan1 table BENDER')
 
     def run(self):
         ips,threads = [],[]
@@ -142,16 +174,14 @@ class Bender:
             print("Launched",line['ip_dst'])
         for thread in threads:
             thread.start()
-        for server in self.nodes:
-            lastByte = re.findall("^([0-9.]+)\.([0-9]+)",server, re.MULTILINE | re.DOTALL)
-            print("Checking if","10.0.251."+lastByte[0][1],"is alive")
-            direct = self.cmd('fping -c3 10.0.251.'+lastByte[0][1])[1]
-            if '100%' in direct:
-                routes = self.cmd('ip route show table BENDER via 10.0.251.'+lastByte[0][1])[0]
-                parsed = re.findall("^([0-9.]+\/[0-9]+)",routes, re.MULTILINE | re.DOTALL)
-                for entry in parsed:
-                    self.cmd('ip route del '+entry+' via 10.0.251.'+lastByte[0][1]+' dev vxlan1 table BENDER')
+        nodeThreads = []
         for thread in threads:
+            thread.join()
+        for server in self.nodes:
+            nodeThreads.append(Thread(target=self.checkNode, args=([server])))
+        for thread in nodeThreads:
+            thread.start()
+        for thread in nodeThreads:
             thread.join()
         print("Saving ignore.json")
         with open(self.path+'/ignore.json', 'w') as f:
