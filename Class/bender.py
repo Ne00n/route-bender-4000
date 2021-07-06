@@ -99,7 +99,7 @@ class Bender:
         latency,queue,outQueue,count = [],Queue(),Queue(),0
         for server in self.nodes:
             queue.put({"server":server,"ip":line['ip_dst']})
-        threads = [Thread(target=self.fpingWorker, args=(queue,outQueue,)) for _ in range(4)]
+        threads = [Thread(target=self.fpingWorker, args=(queue,outQueue,)) for _ in range(5)]
         for thread in threads:
             thread.start()
         while len(self.nodes) != count:
