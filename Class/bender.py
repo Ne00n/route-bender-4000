@@ -168,7 +168,7 @@ class Bender:
             if line['ip_dst'] in ips: continue
             ips.append(line['ip_dst'])
             #Lets go bending
-            if len(threads) <= 15: threads.append(Thread(target=self.magic, args=([line])))
+            if len(threads) <= 30: threads.append(Thread(target=self.magic, args=([line])))
             if line['ip_dst'] not in self.ignore: self.ignore[line['ip_dst']] = {}
             self.ignore[line['ip_dst']] = int(datetime.now().timestamp()) + random.randint(600, 1500)
             print("Launched",line['ip_dst'])
