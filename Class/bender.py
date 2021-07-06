@@ -121,7 +121,7 @@ class Bender:
             if '172.16.' in line['ip_dst']: continue
             if '10.0.' in line['ip_dst']: continue
             #Filter ports
-            if any(line['port_dst'] in port for port in self.config['ignorePorts']): continue
+            if line['port_dst'] in self.config['ignorePorts']: continue
             #Filter double entries
             if line['ip_dst'] in ips: continue
             ips.append(line['ip_dst'])
