@@ -1,10 +1,12 @@
-import subprocess, pyasn, time, json, re
-from multiprocessing import Process
+import subprocess, random, pyasn, time, json, re, os
+from datetime import datetime
+from threading import Thread
 
 nodes,network = [],[]
 
 class Bender:
     def __init__(self,path):
+        self.path = path
         print("Loading asn")
         self.asndb = pyasn.pyasn(path+'/asn.dat')
         print("Loading nodes")
@@ -16,6 +18,12 @@ class Bender:
         print("Loading pmacct")
         with open('/tmp/pmacct_avg.json', 'r') as f:
             self.network = f.read()
+        if os.path.exists(path+'/ignore.json'):
+            print("Loading ignore.json")
+            with open(path+'/ignore.json') as handle:
+                self.ignore = json.loads(handle.read())
+        else:
+            self.ignore = {}
 
     def cmd(self,cmd):
         p = subprocess.run(cmd, stdin=None, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
@@ -108,7 +116,7 @@ class Bender:
             print("Routed",line['ip_dst'],"via","10.0.251."+latency[0][1],"improved latency by",diff,"ms")
 
     def run(self):
-        ips = []
+        ips,threads = [],[]
         self.prepare()
         print("Launching")
         for row in self.network.split('\n'):
@@ -122,18 +130,29 @@ class Bender:
             if '10.0.' in line['ip_dst']: continue
             #Filter ports
             if line['port_dst'] in self.config['ignorePorts']: continue
+            #Filter old checks
+            if line['ip_dst'] in self.ignore and self.ignore[line['ip_dst']] > int(datetime.now().timestamp()): continue
             #Filter double entries
             if line['ip_dst'] in ips: continue
             ips.append(line['ip_dst'])
             #Lets go bending
-            p = Process(target=self.magic, args=([line]))
-            p.start()
+            threads.append(Thread(target=self.magic, args=([line])))
+            if line['ip_dst'] not in self.ignore: self.ignore[line['ip_dst']] = {}
+            self.ignore[line['ip_dst']] = int(datetime.now().timestamp()) + random.randint(600, 1500)
             print("Launched",line['ip_dst'])
+        for thread in threads:
+            thread.start()
         for server in self.nodes:
             lastByte = re.findall("^([0-9.]+)\.([0-9]+)",server, re.MULTILINE | re.DOTALL)
+            print("Checking if","10.0.251."+lastByte[0][1],"is alive")
             direct = self.cmd('fping -c3 10.0.251.'+lastByte[0][1])[1]
             if '100%' in direct:
                 routes = self.cmd('ip route show table BENDER via 10.0.251.'+lastByte[0][1])[0]
                 parsed = re.findall("^([0-9.]+\/[0-9]+)",routes, re.MULTILINE | re.DOTALL)
                 for entry in parsed:
                     self.cmd('ip route del '+entry+' via 10.0.251.'+lastByte[0][1]+' dev vxlan1 table BENDER')
+        for thread in threads:
+            thread.join()
+        print("Saving ignore.json")
+        with open(self.path+'/ignore.json', 'w') as f:
+            json.dump(self.ignore, f)
