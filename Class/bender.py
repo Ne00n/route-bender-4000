@@ -3,8 +3,6 @@ from multiprocessing import Queue
 from datetime import datetime
 from threading import Thread
 
-nodes,network = [],[]
-
 class Bender:
     def __init__(self,path):
         self.path = path
@@ -25,6 +23,12 @@ class Bender:
                 self.ignore = json.loads(handle.read())
         else:
             self.ignore = {}
+        if os.path.exists(path+'/loadBalancing.json'):
+            print("Loading loadBalancing.json")
+            with open(path+'/loadBalancing.json') as handle:
+                self.loadBalancing = json.loads(handle.read())
+        else:
+            self.loadBalancing = {}
 
     def cmd(self,cmd):
         p = subprocess.run(cmd, stdin=None, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
@@ -130,6 +134,12 @@ class Bender:
                 if int(asn) == int(asndata[0]):
                     print("Found ASN Match")
                     subnet = settings['route']
+                    if self.config['ASN'][asn]['loadBalancing'] is False:
+                        if asn in self.loadBalancing:
+                            latency[0][1] = self.loadBalancing[asn]
+                        else:
+                            self.loadBalancing[asn] = latency[0][1]
+                    break
             if subnet == "/32":
                 self.cmd('ip route add '+origin+"/32 via 10.0.251."+latency[0][1]+" dev vxlan1 table BENDER")
             else:
@@ -148,7 +158,7 @@ class Bender:
                 self.cmd('ip route del '+entry+' via 10.0.251.'+lastByte[0][1]+' dev vxlan1 table BENDER')
 
     def run(self):
-        ips,threads = [],[]
+        ips,asn,threads = [],[],[]
         self.prepare()
         print("Launching")
         for row in self.network.split('\n'):
@@ -167,6 +177,11 @@ class Bender:
             #Filter double entries
             if line['ip_dst'] in ips: continue
             ips.append(line['ip_dst'])
+            #Filter ASN if loadBalancing is disabled
+            asndata = self.asndb.lookup(line['ip_dst'])
+            if asndata[0] not None:
+                if asndata[0] in self.config['ASN'] and self.config['ASN'][asndata[0]]['loadBalancing'] == False and asndata[0] not in self.loadBalancing and asndata[0] in asn: continue
+                asn.append(asndata[0])
             #Lets go bending
             if len(threads) <= 30: threads.append(Thread(target=self.magic, args=([line])))
             if line['ip_dst'] not in self.ignore: self.ignore[line['ip_dst']] = {}
@@ -186,3 +201,6 @@ class Bender:
         print("Saving ignore.json")
         with open(self.path+'/ignore.json', 'w') as f:
             json.dump(self.ignore, f)
+        print("Saving loadBalancing.json")
+        with open(self.path+'/loadBalancing.json', 'w') as f:
+            json.dump(self.loadBalancing, f)
