@@ -1,14 +1,14 @@
 {
   "ASN":{
-    "6507" :{"ignore":false,"loadBalancing":false,"route":"/24"},
-    "22634":{"ignore":false,"loadBalancing":false,"route":"/24"},
-    "32590":{"ignore":false,"loadBalancing":true,"route":"/24"},
-    "16509":{"ignore":false,"loadBalancing":true,"route":"/24"},
-    "15169":{"ignore":false,"loadBalancing":true,"route":"/24"},
-    "8075":{"ignore":false,"loadBalancing":true,"route":"/24"}
+    "6507" :{"ignore":false,"ports":true,"loadBalancing":false,"route":"/24"},
+    "22634":{"ignore":false,"ports":false,"loadBalancing":false,"route":"/24"},
+    "32590":{"ignore":false,"ports":true,"loadBalancing":true,"route":"/24"},
+    "16509":{"ignore":false,"ports":true,"loadBalancing":true,"route":"/24"},
+    "15169":{"ignore":false,"ports":true,"loadBalancing":true,"route":"/24"},
+    "8075":{"ignore":false,"ports":true,"loadBalancing":true,"route":"/24"}
   },
   "ASNGroups": {
-    "32163,55497,57976,40551":{"name":"blizzard","ignore":false,"loadBalancing":false,"route":"/24"}
+    "32163,55497,57976,40551":{"name":"blizzard","ignore":false,"ports":true,"loadBalancing":false,"route":"/24"}
   },
   "ignorePorts": [80,443]
 }

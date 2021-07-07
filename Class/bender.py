@@ -174,7 +174,7 @@ class Bender:
         return False
 
     def run(self):
-        ips,asn,threads = [],[],[]
+        ips,asnList,threads = [],[],[]
         self.prepare()
         print("Launching")
         for row in self.network.split('\n'):
@@ -186,8 +186,6 @@ class Bender:
             if '192.168.' in line['ip_dst']: continue
             if '172.16.' in line['ip_dst']: continue
             if '10.0.' in line['ip_dst']: continue
-            #Filter ports
-            if line['port_dst'] in self.config['ignorePorts']: continue
             #Filter old checks
             if line['ip_dst'] in self.ignore and self.ignore[line['ip_dst']] > int(datetime.now().timestamp()): continue
             #Filter double entries
@@ -196,13 +194,23 @@ class Bender:
             #Filter ASN if loadBalancing is disabled
             asndata = self.asndb.lookup(line['ip_dst'])
             if asndata[0] is not None:
-                group = self.checkASNGroup(asndata[0])
-                if group != False and self.config['ASNGroups'][group['asns']]['loadBalancing'] == False and group['asns'] in asn and group['asns'] not in self.loadBalancing: continue
-                if asndata[0] in self.config['ASN'] and self.config['ASN'][asndata[0]]['loadBalancing'] == False and asndata[0] in asn and asndata[0] not in self.loadBalancing: continue
+                asn = str(asndata[0])
+                group = self.checkASNGroup(asn)
+                if group != False and self.config['ASNGroups'][group['asns']]['loadBalancing'] == False and group['asns'] in asnList and group['asns'] not in self.loadBalancing: continue
+                if asn in self.config['ASN'] and self.config['ASN'][asn]['loadBalancing'] == False and asn in asnList and asn not in self.loadBalancing: continue
                 if group != False:
-                    asn.append(group['asns'])
+                    asnList.append(group['asns'])
+                    if group['settings']['ports'] == True:
+                        #Filter ports
+                        if line['port_dst'] in self.config['ignorePorts']: continue
                 else:
-                    asn.append(asndata[0])
+                    asnList.append(asn)
+                    if asn not in self.config['ASN'] or self.config['ASN'][asn]['ports'] == True:
+                        #Filter ports
+                        if line['port_dst'] in self.config['ignorePorts']: continue
+            else:
+                #Filter ports
+                if line['port_dst'] in self.config['ignorePorts']: continue
             #Lets go bending
             if len(threads) <= 30: threads.append(Thread(target=self.magic, args=([line])))
             if line['ip_dst'] not in self.ignore: self.ignore[line['ip_dst']] = {}
