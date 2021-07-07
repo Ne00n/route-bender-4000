@@ -2,6 +2,7 @@
   "ASN":{
     "6507" :{"ignore":"false","loadBalancing":false,"route":"/24"},
     "57976":{"ignore":"false","loadBalancing":false,"route":"/24"},
+    "55497":{"ignore":"false","loadBalancing":false,"route":"/24"},
     "22634":{"ignore":"false","loadBalancing":false,"route":"/24"},
     "32590":{"ignore":"false","loadBalancing":true,"route":"/24"},
     "16509":{"ignore":"false","loadBalancing":true,"route":"/24"},
