@@ -17,15 +17,15 @@ class Bender:
         print("Loading pmacct")
         with open('/tmp/pmacct_avg.json', 'r') as f:
             self.network = f.read()
-        if os.path.exists(path+'/ignore.json'):
+        if os.path.exists(path+'/data/ignore.json'):
             print("Loading ignore.json")
-            with open(path+'/ignore.json') as handle:
+            with open(path+'/data/ignore.json') as handle:
                 self.ignore = json.loads(handle.read())
         else:
             self.ignore = {}
-        if os.path.exists(path+'/loadBalancing.json'):
+        if os.path.exists(path+'/data/loadBalancing.json'):
             print("Loading loadBalancing.json")
-            with open(path+'/loadBalancing.json') as handle:
+            with open(path+'/data/loadBalancing.json') as handle:
                 self.loadBalancing = json.loads(handle.read())
         else:
             self.loadBalancing = {}
@@ -220,8 +220,8 @@ class Bender:
         for thread in nodeThreads:
             thread.join()
         print("Saving ignore.json")
-        with open(self.path+'/ignore.json', 'w') as f:
+        with open(self.path+'/data/ignore.json', 'w') as f:
             json.dump(self.ignore, f)
         print("Saving loadBalancing.json")
-        with open(self.path+'/loadBalancing.json', 'w') as f:
+        with open(self.path+'/data/loadBalancing.json', 'w') as f:
             json.dump(self.loadBalancing, f)
