@@ -211,7 +211,7 @@ class Bender:
                         #Filter ports
                         if line['port_dst'] in self.config['ignorePorts']: continue
                     #Skip if Ignore is set to true
-                    if self.config['ASN'][asn]['ignore'] == True: continue
+                    if asn in self.config['ASN'] and self.config['ASN'][asn]['ignore'] == True: continue
             else:
                 #Filter ports
                 if line['port_dst'] in self.config['ignorePorts']: continue
