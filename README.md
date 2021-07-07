@@ -19,13 +19,13 @@ iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
 
 **Dependencies**<br />
 ```
-apt-get install -y pmacct python3 python3-pip
-pip3 install pyasn
+apt-get install -y pmacct python3 python3-pip && pip3 install pyasn
 ```
 
 **Usage**<br />
 ```
 python3 bender.py
+python3 bender.py clear
 ```
 
 **Update asn data**
