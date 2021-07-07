@@ -179,7 +179,7 @@ class Bender:
             ips.append(line['ip_dst'])
             #Filter ASN if loadBalancing is disabled
             asndata = self.asndb.lookup(line['ip_dst'])
-            if asndata[0] not None:
+            if asndata[0] is not None:
                 if asndata[0] in self.config['ASN'] and self.config['ASN'][asndata[0]]['loadBalancing'] == False and asndata[0] not in self.loadBalancing and asndata[0] in asn: continue
                 asn.append(asndata[0])
             #Lets go bending
