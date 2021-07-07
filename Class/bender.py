@@ -130,16 +130,24 @@ class Bender:
             if origin == 0: origin = line['ip_dst']
             subnet = "/32"
             asndata = self.asndb.lookup(origin)
-            for asn,settings in self.config['ASN'].items():
-                if int(asn) == int(asndata[0]):
-                    print("Found ASN Match")
-                    subnet = settings['route']
-                    if self.config['ASN'][asn]['loadBalancing'] is False:
-                        if asn in self.loadBalancing:
-                            latency[0][1] = self.loadBalancing[asn]
-                        else:
-                            self.loadBalancing[asn] = latency[0][1]
-                    break
+            if asndata[0] is not None:
+                group = self.checkASNGroup(asndata[0])
+                if group != False and group['settings']['loadBalancing'] is False:
+                    if group['asns'] in self.loadBalancing:
+                        latency[0][1] = self.loadBalancing[group['asns']]
+                    else:
+                        self.loadBalancing[group['asns']] = latency[0][1]
+                    subnet = group['settings']['route']
+            if subnet == "/32":
+                for asn,settings in self.config['ASN'].items():
+                    if int(asn) == int(asndata[0]):
+                        subnet = settings['route']
+                        if self.config['ASN'][asn]['loadBalancing'] is False:
+                            if asn in self.loadBalancing:
+                                latency[0][1] = self.loadBalancing[asn]
+                            else:
+                                self.loadBalancing[asn] = latency[0][1]
+                        break
             if subnet == "/32":
                 self.cmd('ip route add '+origin+"/32 via 10.0.251."+latency[0][1]+" dev vxlan1 table BENDER")
             else:
@@ -156,6 +164,14 @@ class Bender:
             parsed = re.findall("^([0-9.]+\/[0-9]+)",routes, re.MULTILINE | re.DOTALL)
             for entry in parsed:
                 self.cmd('ip route del '+entry+' via 10.0.251.'+lastByte[0][1]+' dev vxlan1 table BENDER')
+
+    def checkASNGroup(self,asn):
+        for asnsRaw,settings in self.config['ASNGroups'].items():
+            asns = asnsRaw.split(",")
+            if str(asn) in asns:
+                return {"asns":asnsRaw,"settings":settings}
+                break
+        return False
 
     def run(self):
         ips,asn,threads = [],[],[]
@@ -180,8 +196,13 @@ class Bender:
             #Filter ASN if loadBalancing is disabled
             asndata = self.asndb.lookup(line['ip_dst'])
             if asndata[0] is not None:
-                if asndata[0] in self.config['ASN'] and self.config['ASN'][asndata[0]]['loadBalancing'] == False and asndata[0] not in self.loadBalancing and asndata[0] in asn: continue
-                asn.append(asndata[0])
+                group = self.checkASNGroup(asndata[0])
+                if group != False and self.config['ASNGroups'][group['asns']]['loadBalancing'] == False and group['asns'] in asn and group['asns'] not in self.loadBalancing: continue
+                if asndata[0] in self.config['ASN'] and self.config['ASN'][asndata[0]]['loadBalancing'] == False and asndata[0] in asn and asndata[0] not in self.loadBalancing: continue
+                if group != False:
+                    asn.append(group['asns'])
+                else:
+                    asn.append(asndata[0])
             #Lets go bending
             if len(threads) <= 30: threads.append(Thread(target=self.magic, args=([line])))
             if line['ip_dst'] not in self.ignore: self.ignore[line['ip_dst']] = {}
