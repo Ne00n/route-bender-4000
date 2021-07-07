@@ -203,11 +203,15 @@ class Bender:
                     if group['settings']['ports'] == True:
                         #Filter ports
                         if line['port_dst'] in self.config['ignorePorts']: continue
+                    #Skip if Ignore is set to true
+                    if group['settings']['ignore'] == True: continue
                 else:
                     asnList.append(asn)
                     if asn not in self.config['ASN'] or self.config['ASN'][asn]['ports'] == True:
                         #Filter ports
                         if line['port_dst'] in self.config['ignorePorts']: continue
+                    #Skip if Ignore is set to true
+                    if self.config['ASN'][asn]['ignore'] == True: continue
             else:
                 #Filter ports
                 if line['port_dst'] in self.config['ignorePorts']: continue
