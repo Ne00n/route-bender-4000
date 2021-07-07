@@ -9,10 +9,10 @@ class Bender:
         print("Loading asn")
         self.asndb = pyasn.pyasn(path+'/asn.dat')
         print("Loading nodes")
-        with open(path+'/nodes.json') as handle:
+        with open(path+'/config/nodes.json') as handle:
             self.nodes = json.loads(handle.read())
         print("Loading config")
-        with open(path+'/config.json') as handle:
+        with open(path+'/config/config.json') as handle:
             self.config = json.loads(handle.read())
         print("Loading pmacct")
         with open('/tmp/pmacct_avg.json', 'r') as f:
