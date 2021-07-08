@@ -30,6 +30,5 @@ python3 bender.py clear
 
 **Update asn data**
 ```
-pyasn_util_download.py --latest
-pyasn_util_convert.py --single <Downloaded RIB File> asn.dat
+pyasn_util_download.py --latest && pyasn_util_convert.py --single rib.2021* asn.dat
 ```
