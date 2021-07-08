@@ -44,11 +44,11 @@ class Bender:
         tables = re.findall("^([0-9]+)",self.cmd('cat /etc/iproute2/rt_tables')[0], re.MULTILINE | re.DOTALL)
         inetList = re.findall("(10[0-9.]+?252\.[0-9]+)",self.cmd('ip addr show lo')[0], re.MULTILINE)
         route = self.cmd("ip rule list table BENDER all")[0]
+        if not "BENDER" in route:
+            self.cmd('ip rule add from 0.0.0.0/0 table BENDER')
         for server in self.nodes:
             lastByte = re.findall("^([0-9.]+)\.([0-9]+)",server, re.MULTILINE | re.DOTALL)
             node = str(base + int(lastByte[0][1]))
-            if not "BENDER" in route:
-                self.cmd('ip rule add from 0.0.0.0/0 table BENDER')
             if node not in tables:
                 self.cmd(["echo '"+node+" Node"+node+"' >> /etc/iproute2/rt_tables"])
             if "10.0.252."+lastByte[0][1] not in inetList:
