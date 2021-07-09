@@ -120,6 +120,7 @@ class Bender:
             time.sleep(0.05)
         for thread in threads:
             thread.join()
+        if not latency: return
         latency.sort()
         direct = self.getAvrg(direct[0])
         diff = direct - float(latency[0][0])
