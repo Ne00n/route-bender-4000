@@ -66,6 +66,14 @@ class Bender:
         if len(latency) < 5: return 5000
         return round((float(latency[0]) + float(latency[1]) + float(latency[2])) / 3,2)
 
+    def isPrivate(self,ip):
+        #Source https://stackoverflow.com/questions/691045/how-do-you-determine-if-an-ip-address-is-private-in-python
+         priv_lo = re.compile("^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$")
+         priv_24 = re.compile("^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$")
+         priv_20 = re.compile("^192\.168\.\d{1,3}.\d{1,3}$")
+         priv_16 = re.compile("^172.(1[6-9]|2[0-9]|3[0-1]).[0-9]{1,3}.[0-9]{1,3}$")
+         return (priv_lo.match(ip) or priv_24.match(ip) or priv_20.match(ip) or priv_16.match(ip))
+
     def fpingSource(self,server,ip):
         lastByte = re.findall("^([0-9.]+)\.([0-9]+)",server, re.MULTILINE | re.DOTALL)
         result = self.cmd("fping -c5 "+ip+" -S "+server)[0]
@@ -92,6 +100,9 @@ class Bender:
             result = self.cmd('mtr '+line['ip_dst']+' --report --report-cycles 4 --no-dns')
             parsed = re.findall("-- ([0-9.]+)",result[0], re.MULTILINE)
             lastIP = parsed[len(parsed) -1]
+            if self.isPrivate(lastIP):
+                print(lastIP+" is private, skipping")
+                exit()
             if lastIP != "???":
                 direct = self.cmd("fping -c5 "+lastIP)
             if '100%' in direct[1]:
