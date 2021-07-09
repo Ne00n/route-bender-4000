@@ -63,6 +63,7 @@ class Bender:
         for ip,ms,loss in parsed:
             latency.append(ms)
         latency.sort()
+        if len(latency) < 5: return 5000
         return round((float(latency[0]) + float(latency[1]) + float(latency[2])) / 3,2)
 
     def fpingSource(self,server,ip):
