@@ -217,12 +217,12 @@ class Bender:
         save,count,bendable = 0,0,False
         for row, details in results.items():
             if count < 5: print(details)
-            if row < directAvrg:
-                save = directAvrg - row
+            if row < directAvrg +2:
+                if save is 0: save = directAvrg - row
                 bendable = True
             count += 1
         print("--- Save ---")
-        print("Possible save: ",str(save)+"ms")
+        print("Theoretical save: ",str(save)+"ms")
         print("Bendable:",bendable)
         print("--- end ---")
 
