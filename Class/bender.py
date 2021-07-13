@@ -209,6 +209,9 @@ class Bender:
         for thread in threads:
             thread.join()
         results = {k:v for k,v in sorted(results.items())}
+        print("--- Direct ---")
+        direct = self.cmd('fping -c6 '+ip)
+        print("Got " + str(self.getAvrg(direct[0])) +"ms direct")
         print("--- Top 5 ---")
         count = 0
         for row, details in results.items():
