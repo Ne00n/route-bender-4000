@@ -86,7 +86,6 @@ class Bender:
             data = queue.get()
             parsed,result,lastByte = self.fpingSource(data['server'],data['ip'])
             outQueue.put({"parsed":parsed,"result":result,"lastByte":lastByte,"ip":data['ip'],"server":data['server']})
-        print("Worker closed")
 
     def magic(self,line):
         route = self.cmd("ip r get "+line['ip_dst'])[0]
