@@ -61,6 +61,7 @@ class Bender:
         latency = []
         parsed = re.findall("([0-9.]+).*?([0-9]+.[0-9]).*?([0-9])% loss",fping, re.MULTILINE)
         for ip,ms,loss in parsed:
+            del parsed[0] #drop the first ping result
             latency.append(ms)
         latency.sort()
         if len(latency) < 5: return 5000
