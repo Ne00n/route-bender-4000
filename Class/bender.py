@@ -211,12 +211,19 @@ class Bender:
         results = {k:v for k,v in sorted(results.items())}
         print("--- Direct ---")
         direct = self.cmd('fping -c6 '+ip)
-        print("Got " + str(self.getAvrg(direct[0])) +"ms direct")
+        directAvrg = self.getAvrg(direct[0])
+        print("Got " + str(directAvrg) +"ms direct")
         print("--- Top 5 ---")
-        count = 0
+        save,count,bendable = 0,0,False
         for row, details in results.items():
             if count < 5: print(details)
+            if row < directAvrg:
+                save = directAvrg - row
+                bendable = True
             count += 1
+        print("--- Save ---")
+        print("Possible save: ",str(save)+"ms")
+        print("Bendable:",bendable)
         print("--- end ---")
 
     def run(self):
