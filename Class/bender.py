@@ -77,7 +77,7 @@ class Bender:
 
     def fpingSource(self,server,ip):
         lastByte = re.findall("^([0-9.]+)\.([0-9]+)",server, re.MULTILINE | re.DOTALL)
-        result = self.cmd("fping -c5 "+ip+" -S "+server)[0]
+        result = self.cmd("fping -c6 "+ip+" -S "+server)[0]
         parsed = re.findall("([0-9.]+).*?([0-9]+.[0-9]).*?([0-9])% loss",result, re.MULTILINE)
         return parsed,result,lastByte
 
@@ -95,7 +95,7 @@ class Bender:
             exit()
 
         origin = 0
-        direct = self.cmd("fping -c5 "+line['ip_dst'])
+        direct = self.cmd("fping -c6 "+line['ip_dst'])
         if '100%' in direct[1]:
             print(line['ip_dst'],"not reachable, trying to MTR")
             result = self.cmd('mtr '+line['ip_dst']+' --report --report-cycles 4 --no-dns')
@@ -105,7 +105,7 @@ class Bender:
                 print(lastIP+" is private, skipping")
                 exit()
             if lastIP != "???":
-                direct = self.cmd("fping -c5 "+lastIP)
+                direct = self.cmd("fping -c6 "+lastIP)
             if '100%' in direct[1]:
                 print(line['ip_dst'],"("+lastIP+") not reachable, skipping")
                 exit()
