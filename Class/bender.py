@@ -186,6 +186,28 @@ class Bender:
                 break
         return False
 
+    def debug(self):
+        ip = input("IP: ")
+        print("Running fping")
+        count,queue,outQueue = 0,Queue(),Queue()
+        for server in self.nodes:
+            queue.put({"server":server,"ip":ip})
+        threads = [Thread(target=self.fpingWorker, args=(queue,outQueue,)) for _ in range(int(len(self.nodes) / 3))]
+        for thread in threads:
+            thread.start()
+        while len(self.nodes) != count:
+            while not outQueue.empty():
+                data = outQueue.get()
+                if data['parsed']:
+                    avrg = self.getAvrg(data['result'])
+                    print("Got",str(avrg)+"ms","to",data['ip'],"from",data['server'])
+                else:
+                    print(data['ip']+" is not reachable via "+data['server'])
+                count += 1
+            time.sleep(0.05)
+        for thread in threads:
+            thread.join()
+
     def run(self):
         ips,asnList,threads = [],[],[]
         self.prepare()

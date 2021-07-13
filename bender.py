@@ -8,5 +8,7 @@ if len(sys.argv) == 1:
     bender.run()
 elif sys.argv[1] == "clear":
     bender.clear()
+elif sys.argv[1] == "debug":
+    bender.debug()
 else:
     print("clear")
