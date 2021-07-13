@@ -195,18 +195,26 @@ class Bender:
         threads = [Thread(target=self.fpingWorker, args=(queue,outQueue,)) for _ in range(int(len(self.nodes) / 3))]
         for thread in threads:
             thread.start()
+        results = {}
         while len(self.nodes) != count:
             while not outQueue.empty():
                 data = outQueue.get()
                 if data['parsed']:
                     avrg = self.getAvrg(data['result'])
-                    print("Got",str(avrg)+"ms","to",data['ip'],"from",data['server'])
+                    results[avrg] = "Got " + str(avrg)+"ms" + " from " + data['server']
                 else:
                     print(data['ip']+" is not reachable via "+data['server'])
                 count += 1
             time.sleep(0.05)
         for thread in threads:
             thread.join()
+        results = {k:v for k,v in sorted(results.items())}
+        print("--- Top 5 ---")
+        count = 0
+        for row, details in results.items():
+            if count < 5: print(details)
+            count += 1
+        print("--- end ---")
 
     def run(self):
         ips,asnList,threads = [],[],[]
