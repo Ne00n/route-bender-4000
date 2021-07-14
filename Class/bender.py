@@ -77,7 +77,10 @@ class Bender:
 
     def fpingSource(self,server,ip):
         lastByte = re.findall("^([0-9.]+)\.([0-9]+)",server, re.MULTILINE | re.DOTALL)
-        result = self.cmd("fping -c6 "+ip+" -S "+server)[0]
+        if server == "direct":
+            result = self.cmd("fping -c6 "+ip)[0]
+        else:
+            result = self.cmd("fping -c6 "+ip+" -S "+server)[0]
         parsed = re.findall("([0-9.]+).*?([0-9]+.[0-9]).*?([0-9])% loss",result, re.MULTILINE)
         return parsed,result,lastByte
 
@@ -190,39 +193,39 @@ class Bender:
         ip = input("IP: ")
         print("Running fping")
         count,queue,outQueue = 0,Queue(),Queue()
+        queue.put({"server":"direct","ip":ip})
         for server in self.nodes:
             queue.put({"server":server,"ip":ip})
         threads = [Thread(target=self.fpingWorker, args=(queue,outQueue,)) for _ in range(int(len(self.nodes) / 3))]
         for thread in threads:
             thread.start()
         results = {}
-        while len(self.nodes) != count:
+        while len(self.nodes)+1 != count:
             while not outQueue.empty():
                 data = outQueue.get()
                 if data['parsed']:
-                    avrg = self.getAvrg(data['result'])
-                    results[avrg] = "Got " + str(avrg)+"ms" + " from " + data['server']
+                    results[data['server']] = self.getAvrg(data['result'])
                 else:
                     print(data['ip']+" is not reachable via "+data['server'])
                 count += 1
             time.sleep(0.05)
         for thread in threads:
             thread.join()
-        results = {k:v for k,v in sorted(results.items())}
+        results = {k: results[k] for k in sorted(results, key=results.get)}
         print("--- Direct ---")
-        direct = self.cmd('fping -c6 '+ip)
-        directAvrg = self.getAvrg(direct[0])
+        directAvrg = results["direct"]
         print("Got " + str(directAvrg) +"ms direct")
+        del results["direct"]
         print("--- Top 5 ---")
         save,count,bendable = 0,0,False
-        for row, details in results.items():
-            if count < 5: print(details)
-            if row < directAvrg +2:
-                if save is 0: save = directAvrg - row
+        for server, latency in results.items():
+            if count < 5: print("Got " + str(latency)+"ms" + " from " + server)
+            if latency < directAvrg +2:
+                if save is 0: save = directAvrg - latency
                 bendable = True
             count += 1
         print("--- Save ---")
-        print("Theoretical save: ",str(save)+"ms")
+        print("Theoretical save:",str(save)+"ms")
         print("Bendable:",bendable)
         print("--- end ---")
 
