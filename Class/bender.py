@@ -225,7 +225,7 @@ class Bender:
                 bendable = True
             count += 1
         print("--- Save ---")
-        print("Theoretical save:",str(save)+"ms")
+        print("Theoretical save:",str(round(save,2))+"ms")
         print("Bendable:",bendable)
         print("--- end ---")
 
