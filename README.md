@@ -1,9 +1,9 @@
 Who needs BGP when you got Route Bender 4000<br />
 JUST BEND YOUR WAY DoWN YOUr DESTINY
 
-![data mining](https://i.pinimg.com/originals/ca/67/4d/ca674dde584640c77b55bcbd197575bb.gif)
-
 Addon for: https://github.com/Ne00n/pipe-builder-3000/ </br>
+
+![data mining](https://i.pinimg.com/originals/ca/67/4d/ca674dde584640c77b55bcbd197575bb.gif)
 
 **Why**<br />
 Getting lower latency while gaming online
@@ -15,6 +15,7 @@ Getting lower latency while gaming online
 echo '333 BENDER' >> /etc/iproute2/rt_tables<br />
 Rename hosts.example.json to hosts.json and fill it up<br />
 ```
+cp route-bender-4000/config/pmacctd.conf /etc/pmacct/
 iptables -t nat -A POSTROUTING -o vxlan1 -j MASQUERADE
 iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
 ```
