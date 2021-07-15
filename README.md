@@ -15,7 +15,8 @@ Getting lower latency while gaming online
 echo '333 BENDER' >> /etc/iproute2/rt_tables<br />
 Rename hosts.example.json to hosts.json and fill it up<br />
 ```
-cp route-bender-4000/config/pmacctd.conf /etc/pmacct/
+cp config/pmacctd.conf /etc/pmacct/
+cp config/config.example.json config/config.json
 iptables -t nat -A POSTROUTING -o vxlan1 -j MASQUERADE
 iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
 ```
