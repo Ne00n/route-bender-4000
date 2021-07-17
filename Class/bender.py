@@ -90,7 +90,7 @@ class Bender:
             parsed,result,lastByte = self.fpingSource(data['server'],data['ip'])
             outQueue.put({"parsed":parsed,"result":result,"lastByte":lastByte,"ip":data['ip'],"server":data['server']})
 
-    def magic(self,line):
+    def magic(self,line,force):
         route = self.cmd("ip r get "+line['ip_dst'])[0]
         if 'vxlan1' in route:
             print(line['ip_dst'],"route already exists")
@@ -138,11 +138,11 @@ class Bender:
         latency.sort()
         direct = self.getAvrg(direct[0])
         diff = direct - float(latency[0][0])
-        if diff < 2 and diff > 0:
+        if diff < 2 and diff > 0 and force == False:
             print("Difference less than 2ms, skipping",float(direct),"vs",float(latency[0][0]),"for",line['ip_dst'])
-        elif diff < 2:
+        elif diff < 2 and force == False:
             print("Direct route is better, keeping it for",line['ip_dst'],"Lowest we got",float(latency[0][0]),"ms vs",int(direct),"ms direct")
-        elif float(latency[0][0]) < int(direct):
+        elif float(latency[0][0]) < int(direct) or force == True:
             if origin == 0: origin = line['ip_dst']
             subnet = "/32"
             asndata = self.asndb.lookup(origin)
@@ -249,6 +249,7 @@ class Bender:
             ips.append(line['ip_dst'])
             #Filter ASN if loadBalancing is disabled
             asndata = self.asndb.lookup(line['ip_dst'])
+            force = False
             if asndata[0] is not None:
                 asn = str(asndata[0])
                 group = self.checkASNGroup(asn)
@@ -267,12 +268,14 @@ class Bender:
                         #Filter ports
                         if line['port_dst'] in self.config['ignorePorts']: continue
                     #Skip if Ignore is set to true
-                    if asn in self.config['ASN'] and self.config['ASN'][asn]['ignore'] == True: continue
+                    if asn in self.config['ASN']:
+                        if self.config['ASN'][asn]['ignore'] == True: continue
+                        if "force" in self.config['ASN'][asn] and self.config['ASN'][asn]['force'] == True: force = True
             else:
                 #Filter ports
                 if line['port_dst'] in self.config['ignorePorts']: continue
             #Lets go bending
-            if len(threads) <= 30: threads.append(Thread(target=self.magic, args=([line])))
+            if len(threads) <= 30: threads.append(Thread(target=self.magic, args=([line,force])))
             if line['ip_dst'] not in self.ignore: self.ignore[line['ip_dst']] = {}
             self.ignore[line['ip_dst']] = int(datetime.now().timestamp()) + random.randint(600, 1500)
             print("Launched",line['ip_dst'])
