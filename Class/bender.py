@@ -144,7 +144,7 @@ class Bender:
             print("Direct route is better, keeping it for",line['ip_dst'],"Lowest we got",float(latency[0][0]),"ms vs",int(direct),"ms direct")
         elif float(latency[0][0]) < int(direct) or force == True:
             if origin == 0: origin = line['ip_dst']
-            subnet = "/32"
+            suffix = "/32"
             asndata = self.asndb.lookup(origin)
             if asndata[0] is not None:
                 group = self.checkASNGroup(asndata[0])
@@ -153,22 +153,26 @@ class Bender:
                         latency[0][1] = self.loadBalancing[group['asns']]
                     else:
                         self.loadBalancing[group['asns']] = latency[0][1]
-                    subnet = group['settings']['route']
-            if subnet == "/32":
-                for asn,settings in self.config['ASN'].items():
-                    if int(asn) == int(asndata[0]):
-                        subnet = settings['route']
-                        if self.config['ASN'][asn]['loadBalancing'] is False:
-                            if asn in self.loadBalancing:
-                                latency[0][1] = self.loadBalancing[asn]
-                            else:
-                                self.loadBalancing[asn] = latency[0][1]
-                        break
-            if subnet == "/32":
+                    suffix = group['settings']['route']
+                if suffix == "/32":
+                    for asn,settings in self.config['ASN'].items():
+                        if int(asn) == int(asndata[0]):
+                            suffix = settings['route']
+                            if self.config['ASN'][asn]['loadBalancing'] is False:
+                                if asn in self.loadBalancing:
+                                    latency[0][1] = self.loadBalancing[asn]
+                                else:
+                                    self.loadBalancing[asn] = latency[0][1]
+                            break
+            if suffix == "/32":
                 self.cmd('ip route add '+origin+"/32 via 10.0.251."+latency[0][1]+" dev vxlan1 table BENDER")
             else:
-                origin = '.'.join(origin.split('.')[:-1]+["0"])
-                self.cmd('ip route add '+origin+subnet+" via 10.0.251."+latency[0][1]+" dev vxlan1 table BENDER")
+                if suffix == "dyn":
+                    origin = asndata[1].split("/")[0]
+                    suffix = "/"+asndata[1].split("/")[1]
+                else:
+                    origin = '.'.join(origin.split('.')[:-1]+["0"])
+                self.cmd('ip route add '+origin+suffix+" via 10.0.251."+latency[0][1]+" dev vxlan1 table BENDER")
             print("Routed",line['ip_dst'],"via","10.0.251."+latency[0][1],"improved latency by",diff,"ms")
 
     def checkNode(self,server):
