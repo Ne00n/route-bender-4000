@@ -156,13 +156,14 @@ class Bender:
             asndata = self.asndb.lookup(origin)
             if asndata[0] is not None:
                 group = self.checkASNGroup(asndata[0])
-                if group != False and group['settings']['loadBalancing'] is False:
-                    if group['asns'] in self.loadBalancing:
-                        latency[0][1] = self.loadBalancing[group['asns']]
-                    else:
-                        self.loadBalancing[group['asns']] = latency[0][1]
+                if group != False:
+                    if group['settings']['loadBalancing'] is False:
+                        if group['asns'] in self.loadBalancing:
+                            latency[0][1] = self.loadBalancing[group['asns']]
+                        else:
+                            self.loadBalancing[group['asns']] = latency[0][1]
                     suffix = group['settings']['route']
-                if suffix == "/32":
+                else:
                     for asn,settings in self.config['ASN'].items():
                         if int(asn) == int(asndata[0]):
                             suffix = settings['route']
