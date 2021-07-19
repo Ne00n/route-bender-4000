@@ -43,14 +43,14 @@ pyasn_util_download.py --latest && pyasn_util_convert.py --single rib.2021* asn.
 ignore, if you wanna ignore an entire ASN, e.g Vivox<br /><br />
 
 By default, all ports will be monitored, to ignore ports, add them to ignorePorts<br />
-If you want to skip that for specific ASN's then set ports = false e.g Fastly<br /><br />
+If you want to skip that for specific ASN's then set ports = false e.g Fastly<br />
 
 By default every subnet will be associated with the closest server. If loadBalancing is set to False,<br />
-the first IP that does a connection to that ASN will determine the server for the entire ASN<br /><br />
+the first IP that does a connection to that ASN will determine the server for the entire ASN<br />
 
-If the latency improvement is below 2ms or none, you can force bending by setting force to True<br /><br />
+If the latency improvement is below 2ms or none, you can force bending by setting force to True<br />
 
-You can define the size of the subnet that will be used to route, <br /><br />
+You can define the size of the subnet that will be used to route, <br />
 however I suggest just use dyn instead, which will use the actual size.<br />
 
 **Config.json examples**
