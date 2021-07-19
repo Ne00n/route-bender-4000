@@ -266,6 +266,7 @@ class Bender:
                         if line['port_dst'] in self.config['ignorePorts']: continue
                     #Skip if Ignore is set to true
                     if group['settings']['ignore'] == True: continue
+                    if "force" in group['settings'] and group['settings']['force'] == True: force = True
                 else:
                     asnList.append(asn)
                     if asn not in self.config['ASN'] or self.config['ASN'][asn]['ports'] == True:
