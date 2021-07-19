@@ -41,7 +41,7 @@ pyasn_util_download.py --latest && pyasn_util_convert.py --single rib.2021* asn.
 
 **Settings**<br />
 
-ignore, if you wanna ignore an entire ASN, e.g Vivox<br /><br />
+ignore, if you wanna ignore an entire ASN, e.g Vivox<br />
 
 By default, all ports will be monitored, to ignore ports, add them to ignorePorts<br />
 If you want to skip that for specific ASN's then set ports = false e.g Fastly<br />
