@@ -4,31 +4,32 @@ from datetime import datetime
 from threading import Thread
 
 class Bender:
-    def __init__(self,path):
-        self.path = path
-        print("Loading asn")
-        self.asndb = pyasn.pyasn(path+'/asn.dat')
-        print("Loading nodes")
-        with open(path+'/config/nodes.json') as handle:
-            self.nodes = json.loads(handle.read())
-        print("Loading config")
-        with open(path+'/config/config.json') as handle:
-            self.config = json.loads(handle.read())
-        print("Loading pmacct")
-        with open('/tmp/pmacct_avg.json', 'r') as f:
-            self.network = f.read()
-        if os.path.exists(path+'/data/ignore.json'):
-            print("Loading ignore.json")
-            with open(path+'/data/ignore.json') as handle:
-                self.ignore = json.loads(handle.read())
-        else:
-            self.ignore = {}
-        if os.path.exists(path+'/data/loadBalancing.json'):
-            print("Loading loadBalancing.json")
-            with open(path+'/data/loadBalancing.json') as handle:
-                self.loadBalancing = json.loads(handle.read())
-        else:
-            self.loadBalancing = {}
+    def __init__(self,path,load=True):
+        if load:
+            self.path = path
+            print("Loading asn")
+            self.asndb = pyasn.pyasn(path+'/asn.dat')
+            print("Loading nodes")
+            with open(path+'/config/nodes.json') as handle:
+                self.nodes = json.loads(handle.read())
+            print("Loading config")
+            with open(path+'/config/config.json') as handle:
+                self.config = json.loads(handle.read())
+            print("Loading pmacct")
+            with open('/tmp/pmacct_avg.json', 'r') as f:
+                self.network = f.read()
+            if os.path.exists(path+'/data/ignore.json'):
+                print("Loading ignore.json")
+                with open(path+'/data/ignore.json') as handle:
+                    self.ignore = json.loads(handle.read())
+            else:
+                self.ignore = {}
+            if os.path.exists(path+'/data/loadBalancing.json'):
+                print("Loading loadBalancing.json")
+                with open(path+'/data/loadBalancing.json') as handle:
+                    self.loadBalancing = json.loads(handle.read())
+            else:
+                self.loadBalancing = {}
 
     def cmd(self,cmd):
         p = subprocess.run(cmd, stdin=None, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
@@ -37,6 +38,13 @@ class Bender:
     def clear(self):
         print("Flushing Routing Table...")
         self.cmd('ip route flush table BENDER')
+
+    def show(self):
+        print("Routing Table")
+        routes = self.cmd('ip route show table BENDER')
+        del routes[len(routes) -1]
+        for route in routes:
+            print(route)
 
     def prepare(self):
         print("Prepare")
