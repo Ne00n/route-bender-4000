@@ -61,7 +61,7 @@ however I suggest just use dyn instead, which will use the actual size.<br />
 #Google (Youtube...)
 "15169":{"ignore":false,"ports":true,"loadBalancing":true,"route":"dyn"}
 #Vivox (Voice communications, Valorant, Siege, Overwatch)
-393218":{"ignore":true,"ports":true,"loadBalancing":true,"route":"/24"}
+"393218":{"ignore":true,"ports":true,"loadBalancing":true,"route":"/24"}
 ```
 You can also define ASN groups
 ```
