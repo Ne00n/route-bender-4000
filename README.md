@@ -63,3 +63,7 @@ however I suggest just use dyn instead, which will use the actual size.<br />
 #Vivox (Voice communications, Valorant, Siege, Overwatch)
 393218":{"ignore":true,"ports":true,"loadBalancing":true,"route":"/24"}
 ```
+You can also define ASN groups
+```
+"32163,55497,57976,40551":{"name":"blizzard","ignore":false,"ports":true,"loadBalancing":true,"route":"dyn"}
+```
