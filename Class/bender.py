@@ -4,7 +4,11 @@ from datetime import datetime
 from threading import Thread
 
 class Bender:
-    def __init__(self,path,load=True):
+    def __init__(self,path,load=True,nodes=False):
+        if nodes:
+            print("Loading nodes")
+            with open(path+'/config/nodes.json') as handle:
+                self.nodes = json.loads(handle.read())
         if load:
             self.path = path
             print("Loading asn")

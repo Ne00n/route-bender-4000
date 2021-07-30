@@ -13,7 +13,7 @@ elif sys.argv[1] == "show":
     bender = Bender(path,False)
     bender.show()
 elif sys.argv[1] == "debug":
-    bender = Bender(path)
+    bender = Bender(path,False,True)
     bender.debug()
 else:
     print("show, clear, debug")
