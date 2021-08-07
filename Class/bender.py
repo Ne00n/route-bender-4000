@@ -97,10 +97,13 @@ class Bender:
         return parsed,result,lastByte
 
     def fpingWorker(self,queue,outQueue):
-        while queue.qsize() > 0 :
-            data = queue.get()
-            parsed,result,lastByte = self.fpingSource(data['server'],data['ip'])
-            outQueue.put({"parsed":parsed,"result":result,"lastByte":lastByte,"ip":data['ip'],"server":data['server']})
+        while queue.qsize() > 0:
+            try:
+                data = queue.get_nowait()
+                parsed,result,lastByte = self.fpingSource(data['server'],data['ip'])
+                outQueue.put({"parsed":parsed,"result":result,"lastByte":lastByte,"ip":data['ip'],"server":data['server']})
+            except Exception as e:
+                return True
 
     def magic(self,line,force):
         route = self.cmd("ip r get "+line['ip_dst'])[0]
