@@ -110,29 +110,11 @@ class Bender:
         if 'vxlan1' in route:
             print(line['ip_dst'],"route already exists")
             exit()
-
         origin = 0
-        direct = self.cmd("fping -c6 "+line['ip_dst'])
-        if '100%' in direct[1]:
-            print(line['ip_dst'],"not reachable, trying to MTR")
-            result = self.cmd('mtr '+line['ip_dst']+' --report --report-cycles 4 --no-dns')
-            parsed = re.findall("-- ([0-9.]+)",result[0], re.MULTILINE)
-            for run in range(1,3):
-                lastIP = parsed[len(parsed) - run]
-                if self.isPrivate(lastIP):
-                    print(lastIP+" is private, skipping")
-                    exit()
-                if lastIP != "???":
-                    direct = self.cmd("fping -c6 "+lastIP)
-                if '100%' in direct[1]:
-                    print(line['ip_dst'],"("+lastIP+") not reachable.")
-                else:
-                    origin = line['ip_dst']
-                    line['ip_dst'] = lastIP
-                    break
-                if run == 2:
-                    print("Could not find pingable IP for",line['ip_dst'])
-                    exit()
+        lastIP,direct = self.mtrIP(line['ip_dst'])
+        if lastIP is False: sys.exit()
+        origin = line['ip_dst']
+        line['ip_dst'] = lastIP
         latency,queue,outQueue,count = [],Queue(),Queue(),0
         for server in self.nodes:
             queue.put({"server":server,"ip":line['ip_dst']})
@@ -212,9 +194,35 @@ class Bender:
                 break
         return False
 
+    def mtrIP(self,ip):
+        print(ip)
+        direct = self.cmd("fping -c6 "+ip)
+        if '100%' in direct[1]:
+            print(ip,"not reachable, trying to MTR")
+            result = self.cmd('mtr '+ip+' --report --report-cycles 4 --no-dns')
+            parsed = re.findall("-- ([0-9.]+)",result[0], re.MULTILINE)
+            for run in range(1,3):
+                lastIP = parsed[len(parsed) - run]
+                if self.isPrivate(lastIP):
+                    print(lastIP+" is private, skipping")
+                    return False,False
+                if lastIP != "???":
+                    direct = self.cmd("fping -c6 "+lastIP)
+                if '100%' in direct[1]:
+                    print(ip,"("+lastIP+") not reachable.")
+                else:
+                    return lastIP,direct
+                if run == 2:
+                    print("Could not find pingable IP for",ip)
+                    return False,False
+        return ip,direct
+
     def debug(self):
         ip = input("IP: ")
         print("Running fping")
+        mtrIP,direct = self.mtrIP(ip)
+        if mtrIP is False: exit()
+        ip = mtrIP
         count,queue,outQueue = 0,Queue(),Queue()
         queue.put({"server":"direct","ip":ip})
         for server in self.nodes:
