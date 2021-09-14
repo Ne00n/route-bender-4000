@@ -9,10 +9,10 @@ class Bender:
             print("Loading nodes")
             with open(path+'/config/nodes.json') as handle:
                 self.nodes = json.loads(handle.read())
+        print("Loading asn")
+        self.asndb = pyasn.pyasn(path+'/asn.dat')
         if load:
             self.path = path
-            print("Loading asn")
-            self.asndb = pyasn.pyasn(path+'/asn.dat')
             print("Loading nodes")
             with open(path+'/config/nodes.json') as handle:
                 self.nodes = json.loads(handle.read())
@@ -197,6 +197,9 @@ class Bender:
             ip,sub = asndata[1].split("/")
             target += " "+ip
             target += " "+ip[:-1]+"1"
+            target += " "+ip[:-1]+"252"
+            target += " "+ip[:-1]+"253"
+            target += " "+ip[:-1]+"254"
         direct = self.cmd("fping -c6 "+target)
         if asndata[0] is not None and options["multi"] == True:
             results = direct[1].split("\n")
@@ -233,10 +236,13 @@ class Bender:
         return target,direct
 
     def debug(self):
-        asndata = {}
-        asndata[0],asndata[1] = "0000","0.0.0./0"
-        options = {"force":False,"multi":False}
         ip = input("IP: ")
+        asndata = self.asndb.lookup(ip)
+        if asndata[0] is None:
+            asndata = {0:"0",1:"0.0.0.0/0"}
+            options = {"force":False,"multi":False}
+        else:
+            options = {"force":False,"multi":True}
         print("Running fping")
         mtrIP,direct = self.mtrIP(ip,options,asndata)
         if mtrIP is False: exit()
