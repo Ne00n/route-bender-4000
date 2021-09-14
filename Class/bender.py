@@ -137,11 +137,11 @@ class Bender:
         latency.sort()
         direct = self.getAvrg(direct[0])
         diff = direct - float(latency[0][0])
-        if diff < 2 and diff > 0 and options["multi"] == False:
+        if diff < 2 and diff > 0 and options["force"] == False:
             print("Difference less than 2ms, skipping",float(direct),"vs",float(latency[0][0]),"for",line['ip_dst'])
-        elif diff < 2 and options["multi"] == False:
+        elif diff < 2 and options["force"] == False:
             print("Direct route is better, keeping it for",line['ip_dst'],"Lowest we got",float(latency[0][0]),"ms vs",int(direct),"ms direct")
-        elif float(latency[0][0]) < int(direct) or options["multi"] == True:
+        elif float(latency[0][0]) < int(direct) or options["force"] == True:
             if origin == 0: origin = line['ip_dst']
             suffix = "/32"
             if asndata[0] is not None:
