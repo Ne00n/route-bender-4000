@@ -119,8 +119,7 @@ class Bender:
         for server in self.nodes:
             queue.put({"server":server,"ip":line['ip_dst']})
         threads = [Thread(target=self.fpingWorker, args=(queue,outQueue,)) for _ in range(int(len(self.nodes) / 3))]
-        for thread in threads:
-            thread.start()
+        for thread in threads: thread.start()
         while len(self.nodes) != count:
             while not outQueue.empty():
                 data = outQueue.get()
@@ -247,8 +246,7 @@ class Bender:
         for server in self.nodes:
             queue.put({"server":server,"ip":ip})
         threads = [Thread(target=self.fpingWorker, args=(queue,outQueue,)) for _ in range(int(len(self.nodes) / 3))]
-        for thread in threads:
-            thread.start()
+        for thread in threads: thread.start()
         results = {}
         while len(self.nodes)+1 != count:
             while not outQueue.empty():
@@ -333,17 +331,13 @@ class Bender:
             if line['ip_dst'] not in self.ignore: self.ignore[line['ip_dst']] = {}
             self.ignore[line['ip_dst']] = int(datetime.now().timestamp()) + random.randint(600, 1500)
             print("Launched",line['ip_dst'])
-        for thread in threads:
-            thread.start()
+        for thread in threads: thread.start()
+        for thread in threads: thread.join()
         nodeThreads = []
-        for thread in threads:
-            thread.join()
         for server in self.nodes:
             nodeThreads.append(Thread(target=self.checkNode, args=([server])))
-        for thread in nodeThreads:
-            thread.start()
-        for thread in nodeThreads:
-            thread.join()
+        for thread in nodeThreads: thread.start()
+        for thread in nodeThreads: thread.join()
         print("Saving ignore.json")
         with open(self.path+'/data/ignore.json', 'w') as f:
             json.dump(self.ignore, f)
