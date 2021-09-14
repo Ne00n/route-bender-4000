@@ -54,6 +54,9 @@ If the latency improvement is below 2ms or none, you can force bending by settin
 You can define the size of the subnet that will be used to route, <br />
 however I suggest just use dyn instead, which will use the actual size.<br />
 
+You can enable multi if the primary IP is not pingable it tries to figure out the gateway.<br />
+This works for fine for some Networks like AWS but can cause problems with others like Google.<br />
+
 **Config.json examples**
 ```
 #Fastly CDN (Reddit...)

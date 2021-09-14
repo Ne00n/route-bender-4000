@@ -105,13 +105,13 @@ class Bender:
             except Exception as e:
                 return True
 
-    def magic(self,line,force):
+    def magic(self,line,options,asndata):
         route = self.cmd("ip r get "+line['ip_dst'])[0]
         if 'vxlan1' in route:
             print(line['ip_dst'],"route already exists")
             exit()
         origin = 0
-        lastIP,direct = self.mtrIP(line['ip_dst'])
+        lastIP,direct = self.mtrIP(line['ip_dst'],options,asndata)
         if lastIP is False: sys.exit()
         origin = line['ip_dst']
         line['ip_dst'] = lastIP
@@ -138,14 +138,13 @@ class Bender:
         latency.sort()
         direct = self.getAvrg(direct[0])
         diff = direct - float(latency[0][0])
-        if diff < 2 and diff > 0 and force == False:
+        if diff < 2 and diff > 0 and options["multi"] == False:
             print("Difference less than 2ms, skipping",float(direct),"vs",float(latency[0][0]),"for",line['ip_dst'])
-        elif diff < 2 and force == False:
+        elif diff < 2 and options["multi"] == False:
             print("Direct route is better, keeping it for",line['ip_dst'],"Lowest we got",float(latency[0][0]),"ms vs",int(direct),"ms direct")
-        elif float(latency[0][0]) < int(direct) or force == True:
+        elif float(latency[0][0]) < int(direct) or options["multi"] == True:
             if origin == 0: origin = line['ip_dst']
             suffix = "/32"
-            asndata = self.asndb.lookup(origin)
             if asndata[0] is not None:
                 group = self.checkASNGroup(asndata[0])
                 if group != False:
@@ -194,12 +193,29 @@ class Bender:
                 break
         return False
 
-    def mtrIP(self,ip):
-        print(ip)
-        direct = self.cmd("fping -c6 "+ip)
+    def mtrIP(self,target,options,asndata):
+        if asndata[0] is not None and options["multi"] == True:
+            ip,sub = asndata[1].split("/")
+            target += " "+ip
+            target += " "+ip[:-1]+"1"
+        direct = self.cmd("fping -c6 "+target)
+        if asndata[0] is not None and options["multi"] == True:
+            results = direct[1].split("\n")
+            for result in results:
+                if "/0%" in result:
+                    target = re.findall("[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+",result, re.MULTILINE)[0]
+                    break
+            latency = direct[0].split("\n")
+            direct[0] = ""
+            for result in latency:
+                if target in result: direct[0] += result+"\n"
+            tmp = direct[1].split("\n")
+            direct[1] = ""
+            for result in tmp:
+                if target in result: direct[1] +=result+"\n"
         if '100%' in direct[1]:
-            print(ip,"not reachable, trying to MTR")
-            result = self.cmd('mtr '+ip+' --report --report-cycles 4 --no-dns')
+            print(target,"not reachable, trying to MTR")
+            result = self.cmd('mtr '+target+' --report --report-cycles 4 --no-dns')
             parsed = re.findall("-- ([0-9.]+)",result[0], re.MULTILINE)
             for run in range(1,3):
                 lastIP = parsed[len(parsed) - run]
@@ -209,18 +225,21 @@ class Bender:
                 if lastIP != "???":
                     direct = self.cmd("fping -c6 "+lastIP)
                 if '100%' in direct[1]:
-                    print(ip,"("+lastIP+") not reachable.")
+                    print(target,"("+lastIP+") not reachable.")
                 else:
                     return lastIP,direct
                 if run == 2:
-                    print("Could not find pingable IP for",ip)
+                    print("Could not find pingable IP for",target)
                     return False,False
-        return ip,direct
+        return target,direct
 
     def debug(self):
+        asndata = {}
+        asndata[0],asndata[1] = "0000","0.0.0./0"
+        options = {"force":False,"multi":False}
         ip = input("IP: ")
         print("Running fping")
-        mtrIP,direct = self.mtrIP(ip)
+        mtrIP,direct = self.mtrIP(ip,options,asndata)
         if mtrIP is False: exit()
         ip = mtrIP
         count,queue,outQueue = 0,Queue(),Queue()
@@ -280,7 +299,7 @@ class Bender:
             ips.append(line['ip_dst'])
             #Filter ASN if loadBalancing is disabled
             asndata = self.asndb.lookup(line['ip_dst'])
-            force = False
+            force,multi = False,False
             if asndata[0] is not None:
                 asn = str(asndata[0])
                 group = self.checkASNGroup(asn)
@@ -294,6 +313,7 @@ class Bender:
                     #Skip if Ignore is set to true
                     if group['settings']['ignore'] == True: continue
                     if "force" in group['settings'] and group['settings']['force'] == True: force = True
+                    if "multi" in group['settings'] and group['settings']['multi'] == True: multi = True
                 else:
                     asnList.append(asn)
                     if asn not in self.config['ASN'] or self.config['ASN'][asn]['ports'] == True:
@@ -303,11 +323,13 @@ class Bender:
                     if asn in self.config['ASN']:
                         if self.config['ASN'][asn]['ignore'] == True: continue
                         if "force" in self.config['ASN'][asn] and self.config['ASN'][asn]['force'] == True: force = True
+                        if "multi" in self.config['ASN'][asn] and self.config['ASN'][asn]['multi'] == True: multi = True
             else:
                 #Filter ports
                 if line['port_dst'] in self.config['ignorePorts']: continue
             #Lets go bending
-            if len(threads) <= 30: threads.append(Thread(target=self.magic, args=([line,force])))
+            options = {"force":force,"multi":multi}
+            if len(threads) <= 30: threads.append(Thread(target=self.magic, args=([line,options,asndata])))
             if line['ip_dst'] not in self.ignore: self.ignore[line['ip_dst']] = {}
             self.ignore[line['ip_dst']] = int(datetime.now().timestamp()) + random.randint(600, 1500)
             print("Launched",line['ip_dst'])
