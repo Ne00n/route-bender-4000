@@ -193,6 +193,7 @@ class Bender:
         return False
 
     def mtrIP(self,target,options,asndata):
+        orgTarget = target
         if asndata[0] is not None and options["multi"] == True:
             ip,sub = asndata[1].split("/")
             target += " "+ip
@@ -207,6 +208,8 @@ class Bender:
                 if "/0%" in result:
                     target = re.findall("[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+",result, re.MULTILINE)[0]
                     break
+            split = target.split(" ")
+            if len(split) > 1: target = orgTarget
             latency = direct[0].split("\n")
             direct[0] = ""
             for result in latency:
