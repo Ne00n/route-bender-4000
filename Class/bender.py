@@ -112,7 +112,7 @@ class Bender:
             exit()
         origin = 0
         lastIP,direct = self.mtrIP(line['ip_dst'],options,asndata)
-        if lastIP is False: sys.exit()
+        if lastIP is False: exit()
         origin = line['ip_dst']
         line['ip_dst'] = lastIP
         latency,queue,outQueue,count = [],Queue(),Queue(),0
