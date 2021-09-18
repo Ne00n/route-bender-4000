@@ -180,7 +180,7 @@ class Bender:
         direct = self.cmd('fping -c3 10.0.251.'+lastByte[0][1])[1]
         if '100%' in direct:
             routes = self.cmd('ip route show table BENDER via 10.0.251.'+lastByte[0][1])[0]
-            parsed = re.findall("^([0-9.]+\/[0-9]+)",routes, re.MULTILINE | re.DOTALL)
+            parsed = re.findall("^([0-9.\/]+)",routes, re.MULTILINE | re.DOTALL)
             for entry in parsed:
                 self.cmd('ip route del '+entry+' via 10.0.251.'+lastByte[0][1]+' dev vxlan1 table BENDER')
 
