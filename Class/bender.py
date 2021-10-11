@@ -9,10 +9,10 @@ class Bender:
             print("Loading nodes")
             with open(path+'/config/nodes.json') as handle:
                 self.nodes = json.loads(handle.read())
+        print("Loading asn")
+        self.asndb = pyasn.pyasn(path+'/asn.dat')
         if load:
             self.path = path
-            print("Loading asn")
-            self.asndb = pyasn.pyasn(path+'/asn.dat')
             print("Loading nodes")
             with open(path+'/config/nodes.json') as handle:
                 self.nodes = json.loads(handle.read())
@@ -105,22 +105,21 @@ class Bender:
             except Exception as e:
                 return True
 
-    def magic(self,line,force):
+    def magic(self,line,options,asndata):
         route = self.cmd("ip r get "+line['ip_dst'])[0]
         if 'vxlan1' in route:
             print(line['ip_dst'],"route already exists")
             exit()
         origin = 0
-        lastIP,direct = self.mtrIP(line['ip_dst'])
-        if lastIP is False: sys.exit()
+        lastIP,direct = self.mtrIP(line['ip_dst'],options,asndata)
+        if lastIP is False: exit()
         origin = line['ip_dst']
         line['ip_dst'] = lastIP
         latency,queue,outQueue,count = [],Queue(),Queue(),0
         for server in self.nodes:
             queue.put({"server":server,"ip":line['ip_dst']})
         threads = [Thread(target=self.fpingWorker, args=(queue,outQueue,)) for _ in range(int(len(self.nodes) / 3))]
-        for thread in threads:
-            thread.start()
+        for thread in threads: thread.start()
         while len(self.nodes) != count:
             while not outQueue.empty():
                 data = outQueue.get()
@@ -138,14 +137,13 @@ class Bender:
         latency.sort()
         direct = self.getAvrg(direct[0])
         diff = direct - float(latency[0][0])
-        if diff < 2 and diff > 0 and force == False:
+        if diff < 2 and diff > 0 and options["force"] == False:
             print("Difference less than 2ms, skipping",float(direct),"vs",float(latency[0][0]),"for",line['ip_dst'])
-        elif diff < 2 and force == False:
+        elif diff < 2 and options["force"] == False:
             print("Direct route is better, keeping it for",line['ip_dst'],"Lowest we got",float(latency[0][0]),"ms vs",int(direct),"ms direct")
-        elif float(latency[0][0]) < int(direct) or force == True:
+        elif float(latency[0][0]) < int(direct) or options["force"] == True:
             if origin == 0: origin = line['ip_dst']
             suffix = "/32"
-            asndata = self.asndb.lookup(origin)
             if asndata[0] is not None:
                 group = self.checkASNGroup(asndata[0])
                 if group != False:
@@ -182,7 +180,7 @@ class Bender:
         direct = self.cmd('fping -c3 10.0.251.'+lastByte[0][1])[1]
         if '100%' in direct:
             routes = self.cmd('ip route show table BENDER via 10.0.251.'+lastByte[0][1])[0]
-            parsed = re.findall("^([0-9.]+\/[0-9]+)",routes, re.MULTILINE | re.DOTALL)
+            parsed = re.findall("^([0-9.\/]+)",routes, re.MULTILINE | re.DOTALL)
             for entry in parsed:
                 self.cmd('ip route del '+entry+' via 10.0.251.'+lastByte[0][1]+' dev vxlan1 table BENDER')
 
@@ -194,12 +192,37 @@ class Bender:
                 break
         return False
 
-    def mtrIP(self,ip):
-        print(ip)
-        direct = self.cmd("fping -c6 "+ip)
+    def mtrIP(self,target,options,asndata):
+        orgTarget = target
+        if asndata[0] is not None and options["multi"] == True:
+            ip,sub = asndata[1].split("/")
+            target += " "+ip
+            target += " "+ip[:-1]+"1"
+            target += " "+ip[:-1]+"2"
+            target += " "+ip[:-1]+"3"
+            target += " "+ip[:-1]+"252"
+            target += " "+ip[:-1]+"253"
+            target += " "+ip[:-1]+"254"
+        direct = self.cmd("fping -c6 "+target)
+        if asndata[0] is not None and options["multi"] == True:
+            results = direct[1].split("\n")
+            for result in results:
+                if "/0%" in result:
+                    target = re.findall("[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+",result, re.MULTILINE)[0]
+                    break
+            split = target.split(" ")
+            if len(split) > 1: target = orgTarget
+            latency = direct[0].split("\n")
+            direct[0] = ""
+            for result in latency:
+                if target in result: direct[0] += result+"\n"
+            tmp = direct[1].split("\n")
+            direct[1] = ""
+            for result in tmp:
+                if target in result: direct[1] +=result+"\n"
         if '100%' in direct[1]:
-            print(ip,"not reachable, trying to MTR")
-            result = self.cmd('mtr '+ip+' --report --report-cycles 4 --no-dns')
+            print(target,"not reachable, trying to MTR")
+            result = self.cmd('mtr '+target+' --report --report-cycles 4 --no-dns')
             parsed = re.findall("-- ([0-9.]+)",result[0], re.MULTILINE)
             for run in range(1,3):
                 lastIP = parsed[len(parsed) - run]
@@ -209,18 +232,24 @@ class Bender:
                 if lastIP != "???":
                     direct = self.cmd("fping -c6 "+lastIP)
                 if '100%' in direct[1]:
-                    print(ip,"("+lastIP+") not reachable.")
+                    print(target,"("+lastIP+") not reachable.")
                 else:
                     return lastIP,direct
                 if run == 2:
-                    print("Could not find pingable IP for",ip)
+                    print("Could not find pingable IP for",target)
                     return False,False
-        return ip,direct
+        return target,direct
 
     def debug(self):
         ip = input("IP: ")
+        asndata = self.asndb.lookup(ip)
+        if asndata[0] is None:
+            asndata = {0:"0",1:"0.0.0.0/0"}
+            options = {"force":False,"multi":False}
+        else:
+            options = {"force":False,"multi":True}
         print("Running fping")
-        mtrIP,direct = self.mtrIP(ip)
+        mtrIP,direct = self.mtrIP(ip,options,asndata)
         if mtrIP is False: exit()
         ip = mtrIP
         count,queue,outQueue = 0,Queue(),Queue()
@@ -228,8 +257,7 @@ class Bender:
         for server in self.nodes:
             queue.put({"server":server,"ip":ip})
         threads = [Thread(target=self.fpingWorker, args=(queue,outQueue,)) for _ in range(int(len(self.nodes) / 3))]
-        for thread in threads:
-            thread.start()
+        for thread in threads: thread.start()
         results = {}
         while len(self.nodes)+1 != count:
             while not outQueue.empty():
@@ -280,7 +308,7 @@ class Bender:
             ips.append(line['ip_dst'])
             #Filter ASN if loadBalancing is disabled
             asndata = self.asndb.lookup(line['ip_dst'])
-            force = False
+            force,multi = False,False
             if asndata[0] is not None:
                 asn = str(asndata[0])
                 group = self.checkASNGroup(asn)
@@ -294,6 +322,7 @@ class Bender:
                     #Skip if Ignore is set to true
                     if group['settings']['ignore'] == True: continue
                     if "force" in group['settings'] and group['settings']['force'] == True: force = True
+                    if "multi" in group['settings'] and group['settings']['multi'] == True: multi = True
                 else:
                     asnList.append(asn)
                     if asn not in self.config['ASN'] or self.config['ASN'][asn]['ports'] == True:
@@ -303,25 +332,23 @@ class Bender:
                     if asn in self.config['ASN']:
                         if self.config['ASN'][asn]['ignore'] == True: continue
                         if "force" in self.config['ASN'][asn] and self.config['ASN'][asn]['force'] == True: force = True
+                        if "multi" in self.config['ASN'][asn] and self.config['ASN'][asn]['multi'] == True: multi = True
             else:
                 #Filter ports
                 if line['port_dst'] in self.config['ignorePorts']: continue
             #Lets go bending
-            if len(threads) <= 30: threads.append(Thread(target=self.magic, args=([line,force])))
+            options = {"force":force,"multi":multi}
+            if len(threads) <= 30: threads.append(Thread(target=self.magic, args=([line,options,asndata])))
             if line['ip_dst'] not in self.ignore: self.ignore[line['ip_dst']] = {}
             self.ignore[line['ip_dst']] = int(datetime.now().timestamp()) + random.randint(600, 1500)
             print("Launched",line['ip_dst'])
-        for thread in threads:
-            thread.start()
+        for thread in threads: thread.start()
+        for thread in threads: thread.join()
         nodeThreads = []
-        for thread in threads:
-            thread.join()
         for server in self.nodes:
             nodeThreads.append(Thread(target=self.checkNode, args=([server])))
-        for thread in nodeThreads:
-            thread.start()
-        for thread in nodeThreads:
-            thread.join()
+        for thread in nodeThreads: thread.start()
+        for thread in nodeThreads: thread.join()
         print("Saving ignore.json")
         with open(self.path+'/data/ignore.json', 'w') as f:
             json.dump(self.ignore, f)
