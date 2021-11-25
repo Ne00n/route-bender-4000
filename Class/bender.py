@@ -297,13 +297,13 @@ class Bender:
             if '192.168.' in line['ip_dst']: continue
             if '172.16.' in line['ip_dst']: continue
             if '10.0.' in line['ip_dst']: continue
+            #Filter old checks
+            if line['ip_dst'] in self.ignore and self.ignore[line['ip_dst']] > int(datetime.now().timestamp()): continue
             #Check if route for IP already exists
             route = self.cmd("ip r get "+line['ip_dst'])[0]
             if 'vxlan1' in route:
                 print(line['ip_dst'],"route already exists")
                 continue
-            #Filter old checks
-            if line['ip_dst'] in self.ignore and self.ignore[line['ip_dst']] > int(datetime.now().timestamp()): continue
             #Filter double entries
             if line['ip_dst'] in ips: continue
             ips.append(line['ip_dst'])
