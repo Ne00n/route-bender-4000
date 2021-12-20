@@ -28,7 +28,7 @@ class Bender:
                     with open(path+'/data/ignore.json') as handle:
                         self.ignore = json.loads(handle.read())
                 except:
-                    os.remove(path+'/data/ignore.json)
+                    os.remove(path+'/data/ignore.json')
                     exit()
             else:
                 self.ignore = {}
