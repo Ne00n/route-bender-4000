@@ -24,8 +24,12 @@ class Bender:
                 self.network = f.read()
             if os.path.exists(path+'/data/ignore.json'):
                 print("Loading ignore.json")
-                with open(path+'/data/ignore.json') as handle:
-                    self.ignore = json.loads(handle.read())
+                try:
+                    with open(path+'/data/ignore.json') as handle:
+                        self.ignore = json.loads(handle.read())
+                except:
+                    os.remove(path+'/data/ignore.json)
+                    exit()
             else:
                 self.ignore = {}
             if os.path.exists(path+'/data/loadBalancing.json'):
