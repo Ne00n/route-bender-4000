@@ -4,40 +4,25 @@ from datetime import datetime
 from threading import Thread
 
 class Bender:
-    def __init__(self,path,load=True,nodes=False):
-        if nodes:
-            print("Loading nodes")
-            with open(path+'/config/nodes.json') as handle:
-                self.nodes = json.loads(handle.read())
-        print("Loading asn")
-        self.asndb = pyasn.pyasn(path+'/asn.dat')
+    def __init__(self,path,load=True):
+        filesToLoad = {path+'/config/nodes.json':True,path+'/config/config.json':True,'/tmp/pmacct_avg.json':True,path+'/data/ignore.json':False,path+'/data/loadBalancing.json':False}
+        self.files = {}
         if load:
+            print("Loading asn")
+            self.asndb = pyasn.pyasn(path+'/asn.dat')
             self.path = path
-            print("Loading nodes")
-            with open(path+'/config/nodes.json') as handle:
-                self.nodes = json.loads(handle.read())
-            print("Loading config")
-            with open(path+'/config/config.json') as handle:
-                self.config = json.loads(handle.read())
-            print("Loading pmacct")
-            with open('/tmp/pmacct_avg.json', 'r') as f:
-                self.network = f.read()
-            if os.path.exists(path+'/data/ignore.json'):
-                print("Loading ignore.json")
-                try:
-                    with open(path+'/data/ignore.json') as handle:
-                        self.ignore = json.loads(handle.read())
-                except:
-                    os.remove(path+'/data/ignore.json')
-                    exit()
-            else:
-                self.ignore = {}
-            if os.path.exists(path+'/data/loadBalancing.json'):
-                print("Loading loadBalancing.json")
-                with open(path+'/data/loadBalancing.json') as handle:
-                    self.loadBalancing = json.loads(handle.read())
-            else:
-                self.loadBalancing = {}
+            for file,required in filesToLoad.items():
+                print(f"Loading {file}")
+                parts = file.split("/")
+                with open(file) as handle:
+                    self.files[parts[len(parts)-1]] = 0
+                    try:
+                        self.files[parts[len(parts)-1]] = json.loads(handle.read())
+                    except:
+                        if required == False:
+                            self.files[parts[len(parts)-1]] = {}
+                        else:
+                            exit(f"Failed to load {file}")
 
     def cmd(self,cmd):
         p = subprocess.run(cmd, stdin=None, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
@@ -62,7 +47,7 @@ class Bender:
         route = self.cmd("ip rule list table BENDER all")[0]
         if not "BENDER" in route:
             self.cmd('ip rule add from 0.0.0.0/0 table BENDER')
-        for server in self.nodes:
+        for server in self.files['nodes.json']:
             lastByte = re.findall("^([0-9.]+)\.([0-9]+)",server, re.MULTILINE | re.DOTALL)
             node = str(base + int(lastByte[0][1]))
             if node not in tables:
@@ -116,11 +101,11 @@ class Bender:
         origin = line['ip_dst']
         line['ip_dst'] = lastIP
         latency,queue,outQueue,count = [],Queue(),Queue(),0
-        for server in self.nodes:
+        for server in self.files['nodes.json']:
             queue.put({"server":server,"ip":line['ip_dst']})
-        threads = [Thread(target=self.fpingWorker, args=(queue,outQueue,)) for _ in range(int(len(self.nodes) / 3))]
+        threads = [Thread(target=self.fpingWorker, args=(queue,outQueue,)) for _ in range(int(len(self.files['nodes.json']) / 3))]
         for thread in threads: thread.start()
-        while len(self.nodes) != count:
+        while len(self.files['nodes.json']) != count:
             while not outQueue.empty():
                 data = outQueue.get()
                 if data['parsed']:
@@ -148,20 +133,20 @@ class Bender:
                 group = self.checkASNGroup(asndata[0])
                 if group != False:
                     if group['settings']['loadBalancing'] is False:
-                        if group['asns'] in self.loadBalancing:
-                            latency[0][1] = self.loadBalancing[group['asns']]
+                        if group['asns'] in self.files['loadBalancing.json']:
+                            latency[0][1] = self.files['loadBalancing.json'][group['asns']]
                         else:
-                            self.loadBalancing[group['asns']] = latency[0][1]
+                            self.files['loadBalancing.json'][group['asns']] = latency[0][1]
                     suffix = group['settings']['route']
                 else:
-                    for asn,settings in self.config['ASN'].items():
+                    for asn,settings in self.files['config.json']['ASN'].items():
                         if int(asn) == int(asndata[0]):
                             suffix = settings['route']
-                            if self.config['ASN'][asn]['loadBalancing'] is False:
-                                if asn in self.loadBalancing:
-                                    latency[0][1] = self.loadBalancing[asn]
+                            if self.files['config.json']['ASN'][asn]['loadBalancing'] is False:
+                                if asn in self.files['loadBalancing.json']:
+                                    latency[0][1] = self.files['loadBalancing.json'][asn]
                                 else:
-                                    self.loadBalancing[asn] = latency[0][1]
+                                    self.files['loadBalancing.json'][asn] = latency[0][1]
                             break
             if suffix == "/32":
                 self.cmd('ip route add '+origin+"/32 via 10.0.251."+latency[0][1]+" dev vxlan1 table BENDER")
@@ -185,7 +170,7 @@ class Bender:
                 self.cmd('ip route del '+entry+' via 10.0.251.'+lastByte[0][1]+' dev vxlan1 table BENDER')
 
     def checkASNGroup(self,asn):
-        for asnsRaw,settings in self.config['ASNGroups'].items():
+        for asnsRaw,settings in self.files['config.json']['ASNGroups'].items():
             asns = asnsRaw.split(",")
             if str(asn) in asns:
                 return {"asns":asnsRaw,"settings":settings}
@@ -254,12 +239,12 @@ class Bender:
         ip = mtrIP
         count,queue,outQueue = 0,Queue(),Queue()
         queue.put({"server":"direct","ip":ip})
-        for server in self.nodes:
+        for server in self.files['nodes.json']:
             queue.put({"server":server,"ip":ip})
-        threads = [Thread(target=self.fpingWorker, args=(queue,outQueue,)) for _ in range(int(len(self.nodes) / 3))]
+        threads = [Thread(target=self.fpingWorker, args=(queue,outQueue,)) for _ in range(int(len(self.files['nodes.json']) / 3))]
         for thread in threads: thread.start()
         results = {}
-        while len(self.nodes)+1 != count:
+        while len(self.files['nodes.json'])+1 != count:
             while not outQueue.empty():
                 data = outQueue.get()
                 if data['parsed']:
@@ -280,7 +265,7 @@ class Bender:
         for server, latency in results.items():
             if count < 5: print("Got " + str(latency)+"ms" + " from " + server)
             if latency < directAvrg +2:
-                if save is 0: save = directAvrg - latency
+                if save == 0: save = directAvrg - latency
                 bendable = True
             count += 1
         print("--- Save ---")
@@ -292,7 +277,7 @@ class Bender:
         ips,asnList,threads = [],[],[]
         self.prepare()
         print("Launching")
-        for row in self.network.split('\n'):
+        for row in self.files['pmacct_avg.json'].split('\n'):
             if row.strip() == "": continue
             line = json.loads(row)
             #Filter Local/Multicast traffic
@@ -302,7 +287,7 @@ class Bender:
             if '172.16.' in line['ip_dst']: continue
             if '10.0.' in line['ip_dst']: continue
             #Filter old checks
-            if line['ip_dst'] in self.ignore and self.ignore[line['ip_dst']] > int(datetime.now().timestamp()): continue
+            if line['ip_dst'] in self.files['ignore.json'] and self.files['ignore.json'][line['ip_dst']] > int(datetime.now().timestamp()): continue
             #Check if route for IP already exists
             route = self.cmd("ip r get "+line['ip_dst'])[0]
             if 'vxlan1' in route:
@@ -317,46 +302,46 @@ class Bender:
             if asndata[0] is not None:
                 asn = str(asndata[0])
                 group = self.checkASNGroup(asn)
-                if group != False and self.config['ASNGroups'][group['asns']]['loadBalancing'] == False and group['asns'] in asnList and group['asns'] not in self.loadBalancing: continue
-                if asn in self.config['ASN'] and self.config['ASN'][asn]['loadBalancing'] == False and asn in asnList and asn not in self.loadBalancing: continue
+                if group != False and self.files['config.json']['ASNGroups'][group['asns']]['loadBalancing'] == False and group['asns'] in asnList and group['asns'] not in self.files['loadBalancing.json']: continue
+                if asn in self.files['config.json']['ASN'] and self.files['config.json']['ASN'][asn]['loadBalancing'] == False and asn in asnList and asn not in self.files['loadBalancing.json']: continue
                 if group != False:
                     asnList.append(group['asns'])
                     if group['settings']['ports'] == True:
                         #Filter ports
-                        if line['port_dst'] in self.config['ignorePorts']: continue
+                        if line['port_dst'] in self.files['config.json']['ignorePorts']: continue
                     #Skip if Ignore is set to true
                     if group['settings']['ignore'] == True: continue
                     if "force" in group['settings'] and group['settings']['force'] == True: force = True
                     if "multi" in group['settings'] and group['settings']['multi'] == True: multi = True
                 else:
                     asnList.append(asn)
-                    if asn not in self.config['ASN'] or self.config['ASN'][asn]['ports'] == True:
+                    if asn not in self.files['config.json']['ASN'] or self.files['config.json']['ASN'][asn]['ports'] == True:
                         #Filter ports
-                        if line['port_dst'] in self.config['ignorePorts']: continue
+                        if line['port_dst'] in self.files['config.json']['ignorePorts']: continue
                     #Skip if Ignore is set to true
-                    if asn in self.config['ASN']:
-                        if self.config['ASN'][asn]['ignore'] == True: continue
-                        if "force" in self.config['ASN'][asn] and self.config['ASN'][asn]['force'] == True: force = True
-                        if "multi" in self.config['ASN'][asn] and self.config['ASN'][asn]['multi'] == True: multi = True
+                    if asn in self.files['config.json']['ASN']:
+                        if self.files['config.json']['ASN'][asn]['ignore'] == True: continue
+                        if "force" in self.files['config.json']['ASN'][asn] and self.files['config.json']['ASN'][asn]['force'] == True: force = True
+                        if "multi" in self.files['config.json']['ASN'][asn] and self.files['config.json']['ASN'][asn]['multi'] == True: multi = True
             else:
                 #Filter ports
-                if line['port_dst'] in self.config['ignorePorts']: continue
+                if line['port_dst'] in self.files['config.json']['ignorePorts']: continue
             #Lets go bending
             options = {"force":force,"multi":multi}
             if len(threads) <= 30: threads.append(Thread(target=self.magic, args=([line,options,asndata])))
-            if line['ip_dst'] not in self.ignore: self.ignore[line['ip_dst']] = {}
-            self.ignore[line['ip_dst']] = int(datetime.now().timestamp()) + random.randint(600, 1500)
+            if line['ip_dst'] not in self.files['ignore.json']: self.files['ignore.json'][line['ip_dst']] = {}
+            self.files['ignore.json'][line['ip_dst']] = int(datetime.now().timestamp()) + random.randint(600, 1500)
             print("Launched",line['ip_dst'])
         for thread in threads: thread.start()
         for thread in threads: thread.join()
         nodeThreads = []
-        for server in self.nodes:
+        for server in self.files['nodes.json']:
             nodeThreads.append(Thread(target=self.checkNode, args=([server])))
         for thread in nodeThreads: thread.start()
         for thread in nodeThreads: thread.join()
         print("Saving ignore.json")
         with open(self.path+'/data/ignore.json', 'w') as f:
-            json.dump(self.ignore, f)
+            json.dump(self.files['ignore.json'], f)
         print("Saving loadBalancing.json")
         with open(self.path+'/data/loadBalancing.json', 'w') as f:
-            json.dump(self.loadBalancing, f)
+            json.dump(self.files['loadBalancing.json'], f)
