@@ -16,7 +16,10 @@ class Bender:
                 parts = file.split("/")
                 with open(file) as handle:
                     try:
-                        self.files[parts[len(parts)-1]] = json.loads(handle.read())
+                        if "pmacct_avg" in file:
+                            self.files[parts[len(parts)-1]] = f.read()
+                        else:
+                            self.files[parts[len(parts)-1]] = json.loads(handle.read())
                     except:
                         if required == False:
                             self.files[parts[len(parts)-1]] = {}
