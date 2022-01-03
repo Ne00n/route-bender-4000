@@ -275,6 +275,12 @@ class Bender:
         print("Bendable:",bendable)
         print("--- end ---")
 
+    def cleanIgnore(self):
+        for ip, expiry in list(self.files['ignore.json'].items()):
+            if int(datetime.now().timestamp()) > expiry: 
+                print(f"Removing {ip} from ignore.json")
+                del self.files['ignore.json'][ip]
+
     def run(self):
         ips,asnList,threads = [],[],[]
         self.prepare()
@@ -288,13 +294,21 @@ class Bender:
             if '192.168.' in line['ip_dst']: continue
             if '172.16.' in line['ip_dst']: continue
             if '10.0.' in line['ip_dst']: continue
-            #Filter old checks
-            if line['ip_dst'] in self.files['ignore.json'] and self.files['ignore.json'][line['ip_dst']] > int(datetime.now().timestamp()): continue
             #Check if route for IP already exists
             route = self.cmd("ip r get "+line['ip_dst'])[0]
             if 'vxlan1' in route:
                 print(line['ip_dst'],"route already exists")
                 continue
+            #Filter out old expired ignores
+            self.cleanIgnore()
+            #Filter old checks
+            if line['ip_dst'] in self.files['ignore.json']:
+                if self.files['ignore.json'][line['ip_dst']] > int(datetime.now().timestamp()): 
+                    #Cooldown until we check the IP again
+                    continue
+                else:
+                    #If we checked the IP but did not bend it and the connection is still active, we extend the ignore to prevent sudden bending syndrom
+                    self.files['ignore.json'][line['ip_dst']] = int(datetime.now().timestamp()) + random.randint(600, 1500)
             #Filter double entries
             if line['ip_dst'] in ips: continue
             ips.append(line['ip_dst'])
