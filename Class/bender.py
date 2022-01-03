@@ -15,7 +15,6 @@ class Bender:
                 print(f"Loading {file}")
                 parts = file.split("/")
                 with open(file) as handle:
-                    self.files[parts[len(parts)-1]] = 0
                     try:
                         self.files[parts[len(parts)-1]] = json.loads(handle.read())
                     except:
