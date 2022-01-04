@@ -185,7 +185,7 @@ class Bender:
             ips = [1,2,3,252,253,254]
             ip,sub = asndata[1].split("/")
             target += " "+ip
-            for entry in ips: target += f" {ip[:-1]}{entry}
+            for entry in ips: target += f" {ip[:-1]}{entry}"
         direct = self.cmd("fping -c6 "+target)
         if asndata[0] is not None and options["multi"] == True:
             results = direct[1].split("\n")
@@ -259,16 +259,14 @@ class Bender:
         print("Got " + str(directAvrg) +"ms direct")
         del results["direct"]
         print("--- Top 5 ---")
-        save,count,bendable = 0,0,False
+        save,count = 0,0
         for server, latency in results.items():
             if count < 5: print("Got " + str(latency)+"ms" + " from " + server)
             if latency < directAvrg +2:
                 if save == 0: save = directAvrg - latency
-                bendable = True
             count += 1
         print("--- Save ---")
         print("Theoretical save:",str(round(save,2))+"ms")
-        print("Bendable:",bendable)
         print("--- end ---")
 
     def cleanIgnore(self):
