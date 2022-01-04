@@ -180,7 +180,6 @@ class Bender:
         return False
 
     def mtrIP(self,target,options,asndata):
-        print(asndata)
         orgTarget = target
         if asndata[0] is not None and options["multi"] == True:
             ips = [1,2,3,252,253,254]
@@ -189,11 +188,8 @@ class Bender:
             for entry in ips: target += f" {ip[:-1]}{entry}"
         direct = self.cmd("fping -c6 "+target)
         if asndata[0] is not None and options["multi"] == True:
-            print(direct)
             results = direct[1].split("\n")
-            print(results)
             for result in results:
-                print(result)
                 if "/0%" in result:
                     target = re.findall("[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+",result, re.MULTILINE)[0]
                     break
