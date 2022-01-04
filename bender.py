@@ -14,6 +14,6 @@ elif sys.argv[1] == "show":
     bender.show()
 elif sys.argv[1] == "debug":
     bender = Bender(path)
-    bender.debug()
+    bender.debug(sys.argv[2])
 else:
     print("show, clear, debug")
