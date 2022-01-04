@@ -182,14 +182,10 @@ class Bender:
     def mtrIP(self,target,options,asndata):
         orgTarget = target
         if asndata[0] is not None and options["multi"] == True:
+            ips = [1,2,3,252,253,254]
             ip,sub = asndata[1].split("/")
             target += " "+ip
-            target += " "+ip[:-1]+"1"
-            target += " "+ip[:-1]+"2"
-            target += " "+ip[:-1]+"3"
-            target += " "+ip[:-1]+"252"
-            target += " "+ip[:-1]+"253"
-            target += " "+ip[:-1]+"254"
+            for entry in ips: target += f" {ip[:-1]}{entry}
         direct = self.cmd("fping -c6 "+target)
         if asndata[0] is not None and options["multi"] == True:
             results = direct[1].split("\n")
