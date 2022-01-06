@@ -11,6 +11,18 @@ Getting lower latency while gaming online
 **Setup**<br />
 [Wireguard](https://github.com/wireguard) as transport network + entry point<br />
 
+**Features**<br >
+- Automatic Latency optimization
+Just game seriously
+- Cutting Edge rebending on idle connections
+If a connection is idle, it will be rebended after x hours to offer the lowest latency
+- Rebending Protection on active connections
+If a connection cannot be optimized currently, it will be ignored until idle
+- Packetloss bending protection
+Won't bend if Packetloss is detected over a specific route
+- Pray & Disconnect if exit dies
+If any exit dies, all routes will be removed once detected
+
 **Prepare**<br />
 ```
 echo '333 BENDER' >> /etc/iproute2/rt_tables
@@ -30,13 +42,15 @@ apt-get install -y pmacct python3 python3-pip && pip3 install pyasn
 **Usage**<br />
 ```
 python3 bender.py
+python3 bender.py debug 1.1.1.1
+python3 bender.py show
 python3 bender.py clear
 ```
 pmacct will execute bender.py every 60s, but you can still do it manually
 
 **Update asn data**
 ```
-pyasn_util_download.py --latest && pyasn_util_convert.py --single rib.2021* asn.dat
+pyasn_util_download.py --latest && pyasn_util_convert.py --single rib.202* asn.dat
 ```
 
 **Settings**<br />
