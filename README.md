@@ -12,15 +12,15 @@ Getting lower latency while gaming online
 [Wireguard](https://github.com/wireguard) as transport network + entry point<br />
 
 **Features**<br >
-- Automatic Latency optimization
+- Automatic Latency optimization<br >
 Just game seriously
-- Cutting Edge rebending on idle connections
+- Cutting Edge rebending on idle connections<br >
 If a connection is idle, it will be rebended after x hours to offer the lowest latency
-- Rebending Protection on active connections
+- Rebending Protection on active connections<br >
 If a connection cannot be optimized currently, it will be ignored until idle
-- Packetloss bending protection
+- Packetloss bending protection<br >
 Won't bend if Packetloss is detected over a specific route
-- Pray & Disconnect if exit dies
+- Pray & Disconnect if exit dies<br >
 If any exit dies, all routes will be removed once detected
 
 **Prepare**<br />
