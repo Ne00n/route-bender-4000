@@ -1,5 +1,4 @@
 import subprocess, random, pyasn, time, json, re, os
-from netaddr import IPNetwork, IPAddress
 from multiprocessing import Queue
 from datetime import datetime
 from threading import Thread
@@ -275,19 +274,15 @@ class Bender:
                 print(f"Removing {target} from ignore.json")
                 del self.files['ignore.json'][target]
 
-    def history(self):
-        ongoing,recheck = [],[]
-        for row in self.files['pmacct_avg.json'].split('\n'):
-            if row.strip() == "": continue
-            line = json.loads(row)
-            ongoing.append(line['ip_dst'])
-        if self.files['history.json'] == {}: return recheck
-        for ip, data in list(self.files['history.json'].items()):
+    def history(self,activeSubnets):
+        recheck = []
+        #if self.files['history.json'] == {}: return recheck
+        for subnet, data in list(self.files['history.json'].items()):
             #First make sure the connection is idle
-            if ip in ongoing: continue
+            if subnet in activeSubnets: continue
             #Cooldown check
             if data['expiry'] > int(datetime.now().timestamp()): continue
-            recheck.append({"ip":ip,"port":data['port']})
+            recheck.append({"subnet":subnet,"ip":data['ip'],"port":data['port']})
         return recheck
 
     def asnLookUp(self,asnList,line):
@@ -326,10 +321,9 @@ class Bender:
         return options,asndata,asnList
 
     def run(self):
-        ips,asnList,threads = [],[],[]
-        self.prepare()
+        ips,asnList,activeSubnets,threads = [],[],[],[]
         print("Launching")
-        history = self.history()
+        self.prepare()
         print("Checking pmacct")
         for row in self.files['pmacct_avg.json'].split('\n'):
             if row.strip() == "": continue
@@ -343,14 +337,15 @@ class Bender:
             #Filter double entries
             if line['ip_dst'] in ips: continue
             ips.append(line['ip_dst'])
+            #Filter ASN if loadBalancing... is disabled/enabled
+            options,asndata,asnList = self.asnLookUp(asnList,line)
+            subnet = asndata[1] if asndata[1] is not None else f"{line['ip_dst']}/32"
+            activeSubnets.append(subnet)
             #Check if route for IP already exists
             route = self.cmd("ip r get "+line['ip_dst'])[0]
             if 'vxlan1' in route:
                 print(line['ip_dst'],"route already exists")
                 continue
-            #Filter ASN if loadBalancing... is disabled/enabled
-            options,asndata,asnList = self.asnLookUp(asnList,line)
-            subnet = asndata[1] if asndata[1] is not None else f"{line['ip_dst']}/32"
             #Filter out old expired ignores
             self.cleanIgnore()
             #Filter old checks
@@ -362,12 +357,13 @@ class Bender:
             #Limit of current checks, to keep cpu load in okay levels to prevent lags
             if len(threads) <= 30:
                 #Add to History 
-                if line['ip_dst'] not in self.files['history.json']: self.files['history.json'][line['ip_dst']] = {}
-                self.files['history.json'][line['ip_dst']] = {'port':line['port_dst'],'expiry':int(datetime.now().timestamp()) + random.randint(3600, 14400)} #wait 1-4 hours before re-check
+                if subnet not in self.files['history.json']: self.files['history.json'][subnet] = {}
+                self.files['history.json'][subnet] = {'ip':line['ip_dst'],'port':line['port_dst'],'expiry':int(datetime.now().timestamp()) + random.randint(3600, 14400)} #wait 1-4 hours before re-check
                 #Add to Ignore
                 self.files['ignore.json'][subnet] = int(datetime.now().timestamp()) + random.randint(600, 1800) #ignore for 10-30 minutes
                 threads.append(Thread(target=self.magic, args=([line,options,asndata])))
                 print("Launched",line['ip_dst'])
+        history = self.history(activeSubnets)
         print("Checking history")
         for data in history:
             if len(threads) > 30: break
@@ -378,11 +374,11 @@ class Bender:
                 routes = self.cmd(f'ip route show table BENDER via {node}')[0]
                 parsed = re.findall("^([0-9.\/]+)",routes, re.MULTILINE | re.DOTALL)
                 for entry in parsed:
-                    if IPAddress(data['ip']) in IPNetwork(entry):
-                        print(f"Removing {entry}")
+                    if entry == data['subnet']:
+                        print(f"Removing {entry} from history.json")
                         self.cmd(f'ip route del {entry} via {node} dev vxlan1 table BENDER')
                         break
-            self.files['history.json'][data['ip']] = {'port':data['port'],'expiry':int(datetime.now().timestamp()) + random.randint(7200, 21600)} #wait 2-6 hours before re-check
+            self.files['history.json'][subnet]['expiry'] = int(datetime.now().timestamp()) + random.randint(7200, 21600) #wait 2-6 hours before re-check
             self.files['ignore.json'][subnet] = int(datetime.now().timestamp()) + random.randint(600, 1800) #ignore for 10-30 minutes
             #Filter ASN if loadBalancing... is disabled/enabled
             line = {"ip_dst":data['ip'],"port_dst":data['port']}
