@@ -290,11 +290,6 @@ class Bender:
             recheck.append({"ip":ip,"port":data['port']})
         return recheck
 
-    def inIgnore(self,ip):
-        for target, expiry in list(self.files['ignore.json'].items()):
-            if IPAddress(ip) in IPNetwork(target): return True
-        return False
-
     def asnLookUp(self,asnList,line):
         options,asndata = {"force":False,"multi":False},None
         asndata = self.asndb.lookup(line['ip_dst'])
@@ -359,13 +354,11 @@ class Bender:
             #Filter out old expired ignores
             self.cleanIgnore()
             #Filter old checks
-            if self.inIgnore(line['ip_dst']):
+            if subnet in self.files['ignore.json']:
                 if self.files['ignore.json'][subnet] > int(datetime.now().timestamp()): 
-                    #Cooldown until we check the IP again
-                    continue
-                else:
                     #If we checked the IP but did not bend it and the connection is still active, we extend the ignore to prevent sudden bending syndrom
-                    self.files['ignore.json'][subnet] = int(datetime.now().timestamp()) + random.randint(600, 1800)
+                    self.files['ignore.json'][subnet] = self.files['ignore.json'][subnet] + 60
+                    continue
             #Limit of current checks, to keep cpu load in okay levels to prevent lags
             if len(threads) <= 30:
                 #Add to History 
@@ -389,7 +382,7 @@ class Bender:
                         print(f"Removing {entry}")
                         self.cmd(f'ip route del {entry} via {node} dev vxlan1 table BENDER')
                         break
-            self.files['history.json'][data['ip']] = {'port':data['port'],'expiry':int(datetime.now().timestamp()) + random.randint(3600, 14400)} #wait 1-4 hours before re-check
+            self.files['history.json'][data['ip']] = {'port':data['port'],'expiry':int(datetime.now().timestamp()) + random.randint(7200, 21600)} #wait 2-6 hours before re-check
             self.files['ignore.json'][subnet] = int(datetime.now().timestamp()) + random.randint(600, 1800) #ignore for 10-30 minutes
             #Filter ASN if loadBalancing... is disabled/enabled
             line = {"ip_dst":data['ip'],"port_dst":data['port']}
