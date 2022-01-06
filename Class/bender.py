@@ -360,7 +360,7 @@ class Bender:
                 if subnet not in self.files['history.json']: self.files['history.json'][subnet] = {}
                 self.files['history.json'][subnet] = {'ip':line['ip_dst'],'port':line['port_dst'],'expiry':int(datetime.now().timestamp()) + random.randint(3600, 14400)} #wait 1-4 hours before re-check
                 #Add to Ignore
-                self.files['ignore.json'][subnet] = int(datetime.now().timestamp()) + random.randint(600, 1800) #ignore for 10-30 minutes
+                self.files['ignore.json'][subnet] = int(datetime.now().timestamp()) + random.randint(1800, 5400) #ignore for 30-90 minutes
                 threads.append(Thread(target=self.magic, args=([line,options,asndata])))
                 print("Launched",line['ip_dst'])
         history = self.history(activeSubnets)
@@ -378,8 +378,8 @@ class Bender:
                         print(f"Removing {entry} from history.json")
                         self.cmd(f'ip route del {entry} via {node} dev vxlan1 table BENDER')
                         break
-            self.files['history.json'][subnet]['expiry'] = int(datetime.now().timestamp()) + random.randint(7200, 21600) #wait 2-6 hours before re-check
-            self.files['ignore.json'][subnet] = int(datetime.now().timestamp()) + random.randint(600, 1800) #ignore for 10-30 minutes
+            self.files['history.json'][data['subnet']]['expiry'] = int(datetime.now().timestamp()) + random.randint(7200, 21600) #wait 2-6 hours before re-check
+            self.files['ignore.json'][data['subnet']] = int(datetime.now().timestamp()) + random.randint(1800, 5400) #ignore for 30-90 minutes
             #Filter ASN if loadBalancing... is disabled/enabled
             line = {"ip_dst":data['ip'],"port_dst":data['port']}
             options,asndata,asnList = self.asnLookUp(asnList,line)
