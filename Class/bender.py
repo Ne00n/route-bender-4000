@@ -1,4 +1,5 @@
 import subprocess, random, pyasn, time, json, re, os
+from netaddr import IPNetwork, IPAddress
 from multiprocessing import Queue
 from datetime import datetime
 from threading import Thread
@@ -374,7 +375,7 @@ class Bender:
                 routes = self.cmd(f'ip route show table BENDER via {node}')[0]
                 parsed = re.findall("^([0-9.\/]+)",routes, re.MULTILINE | re.DOTALL)
                 for entry in parsed:
-                    if entry == data['subnet']:
+                    if IPAddress(data['ip']) in IPNetwork(entry):
                         print(f"Removing {entry} from history.json")
                         self.cmd(f'ip route del {entry} via {node} dev vxlan1 table BENDER')
                         break

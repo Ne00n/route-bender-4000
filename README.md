@@ -14,6 +14,8 @@ Getting lower latency while gaming online
 **Features**<br >
 - Automatic Latency optimization<br >
 Just game seriously
+- Cutting Edge Latency detection<br>
+In case a IP does not like to ping, it will MTR it, plus some other stuff
 - Cutting Edge rebending on idle connections<br >
 If a connection is idle, it will be rebended after x hours to offer the lowest latency
 - Rebending Protection on active connections<br >
