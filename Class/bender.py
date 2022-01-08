@@ -293,30 +293,30 @@ class Bender:
         if asndata[0] is not None:
             asn = str(asndata[0])
             group = self.checkASNGroup(asn)
-            if group != False and self.files['config.json']['ASNGroups'][group['asns']]['loadBalancing'] == False and group['asns'] in asnList and group['asns'] not in self.files['loadBalancing.json']: return options,asndata,asnList
-            if asn in self.files['config.json']['ASN'] and self.files['config.json']['ASN'][asn]['loadBalancing'] == False and asn in asnList and asn not in self.files['loadBalancing.json']: return options,asndata,asnList
+            if group != False and self.files['config.json']['ASNGroups'][group['asns']]['loadBalancing'] == False and group['asns'] in asnList and group['asns'] not in self.files['loadBalancing.json']: return False,False,[]
+            if asn in self.files['config.json']['ASN'] and self.files['config.json']['ASN'][asn]['loadBalancing'] == False and asn in asnList and asn not in self.files['loadBalancing.json']: return False,False,[]
             if group != False:
                 asnList.append(group['asns'])
                 if group['settings']['ports'] == True:
                     #Filter ports
-                    if line['port_dst'] in self.files['config.json']['ignorePorts']: return options,asndata,asnList
+                    if line['port_dst'] in self.files['config.json']['ignorePorts']: return False,False,[]
                 #Skip if Ignore is set to true
-                if group['settings']['ignore'] == True: return options,asndata,asnList
+                if group['settings']['ignore'] == True: return False,False,[]
                 if "force" in group['settings'] and group['settings']['force'] == True: force = True
                 if "multi" in group['settings'] and group['settings']['multi'] == True: multi = True
             else:
                 asnList.append(asn)
                 if asn not in self.files['config.json']['ASN'] or self.files['config.json']['ASN'][asn]['ports'] == True:
                     #Filter ports
-                    if line['port_dst'] in self.files['config.json']['ignorePorts']: return options,asndata,asnList
+                    if line['port_dst'] in self.files['config.json']['ignorePorts']: return False,False,[]
                 #Skip if Ignore is set to true
                 if asn in self.files['config.json']['ASN']:
-                    if self.files['config.json']['ASN'][asn]['ignore'] == True: return options,asndata
+                    if self.files['config.json']['ASN'][asn]['ignore'] == True: return False,False,[]
                     if "force" in self.files['config.json']['ASN'][asn] and self.files['config.json']['ASN'][asn]['force'] == True: force = True
                     if "multi" in self.files['config.json']['ASN'][asn] and self.files['config.json']['ASN'][asn]['multi'] == True: multi = True
         else:
             #Filter ports
-            if line['port_dst'] in self.files['config.json']['ignorePorts']: return options,asndata,asnList
+            if line['port_dst'] in self.files['config.json']['ignorePorts']: return False,False,[]
         #Lets go bending
         options = {"force":force,"multi":multi}
         return options,asndata,asnList
@@ -340,6 +340,7 @@ class Bender:
             ips.append(line['ip_dst'])
             #Filter ASN if loadBalancing... is disabled/enabled
             options,asndata,asnList = self.asnLookUp(asnList,line)
+            if options == False: continue
             subnet = asndata[1] if asndata[1] is not None else f"{line['ip_dst']}/32"
             activeSubnets.append(subnet)
             #Check if route for IP already exists
@@ -368,6 +369,11 @@ class Bender:
         print("Checking history")
         for data in history:
             if len(threads) > 30: break
+            #Filter ASN if loadBalancing... is disabled/enabled
+            line = {"ip_dst":data['ip'],"port_dst":data['port']}
+            options,asndata,asnList = self.asnLookUp(asnList,line)
+            if options == False: continue
+            #Check for existing route
             route = self.cmd(f"ip r get {data['ip']}")[0]
             if 'vxlan1' in route:
                 #Remove the route if re-check is scheduled
@@ -381,9 +387,6 @@ class Bender:
                         break
             self.files['history.json'][data['subnet']]['expiry'] = int(datetime.now().timestamp()) + random.randint(7200, 21600) #wait 2-6 hours before re-check
             self.files['ignore.json'][data['subnet']] = int(datetime.now().timestamp()) + random.randint(1800, 5400) #ignore for 30-90 minutes
-            #Filter ASN if loadBalancing... is disabled/enabled
-            line = {"ip_dst":data['ip'],"port_dst":data['port']}
-            options,asndata,asnList = self.asnLookUp(asnList,line)
             threads.append(Thread(target=self.magic, args=([line,options,asndata])))
             print("Launched",data['ip'])
 
