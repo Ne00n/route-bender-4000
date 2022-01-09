@@ -6,7 +6,7 @@ from threading import Thread
 
 class Bender:
     def __init__(self,path,load=True):
-        filesToLoad = {path+'/config/nodes.json':True,path+'/config/config.json':True,'/tmp/pmacct_avg.json':True,path+'/data/ignore.json':False,path+'/data/loadBalancing.json':False,path+'/data/history.json':False}
+        filesToLoad = {path+'/config/nodes.json':True,path+'/config/config.json':True,'/tmp/pmacct_avg.json':True,path+'/data/loadBalancing.json':False,path+'/data/history.json':False}
         self.files = {}
         if load:
             print("Loading asn")
@@ -269,15 +269,8 @@ class Bender:
         print("Theoretical save:",str(round(save,2))+"ms")
         print("--- end ---")
 
-    def cleanIgnore(self):
-        for target, expiry in list(self.files['ignore.json'].items()):
-            if int(datetime.now().timestamp()) > expiry: 
-                print(f"Removing {target} from ignore.json")
-                del self.files['ignore.json'][target]
-
     def history(self,activeSubnets):
         recheck = []
-        #if self.files['history.json'] == {}: return recheck
         for subnet, data in list(self.files['history.json'].items()):
             #First make sure the connection is idle
             if subnet in activeSubnets: continue
@@ -293,30 +286,30 @@ class Bender:
         if asndata[0] is not None:
             asn = str(asndata[0])
             group = self.checkASNGroup(asn)
-            if group != False and self.files['config.json']['ASNGroups'][group['asns']]['loadBalancing'] == False and group['asns'] in asnList and group['asns'] not in self.files['loadBalancing.json']: return False,False,[]
-            if asn in self.files['config.json']['ASN'] and self.files['config.json']['ASN'][asn]['loadBalancing'] == False and asn in asnList and asn not in self.files['loadBalancing.json']: return False,False,[]
+            if group != False and self.files['config.json']['ASNGroups'][group['asns']]['loadBalancing'] == False and group['asns'] in asnList and group['asns'] not in self.files['loadBalancing.json']: return False,[None,None],[]
+            if asn in self.files['config.json']['ASN'] and self.files['config.json']['ASN'][asn]['loadBalancing'] == False and asn in asnList and asn not in self.files['loadBalancing.json']: return False,[None,None],[]
             if group != False:
                 asnList.append(group['asns'])
                 if group['settings']['ports'] == True:
                     #Filter ports
-                    if line['port_dst'] in self.files['config.json']['ignorePorts']: return False,False,[]
+                    if line['port_dst'] in self.files['config.json']['ignorePorts']: return False,[None,None],[]
                 #Skip if Ignore is set to true
-                if group['settings']['ignore'] == True: return False,False,[]
+                if group['settings']['ignore'] == True: return False,[None,None],[]
                 if "force" in group['settings'] and group['settings']['force'] == True: force = True
                 if "multi" in group['settings'] and group['settings']['multi'] == True: multi = True
             else:
                 asnList.append(asn)
                 if asn not in self.files['config.json']['ASN'] or self.files['config.json']['ASN'][asn]['ports'] == True:
                     #Filter ports
-                    if line['port_dst'] in self.files['config.json']['ignorePorts']: return False,False,[]
+                    if line['port_dst'] in self.files['config.json']['ignorePorts']: return False,[None,None],[]
                 #Skip if Ignore is set to true
                 if asn in self.files['config.json']['ASN']:
-                    if self.files['config.json']['ASN'][asn]['ignore'] == True: return False,False,[]
+                    if self.files['config.json']['ASN'][asn]['ignore'] == True: return False,[None,None],[]
                     if "force" in self.files['config.json']['ASN'][asn] and self.files['config.json']['ASN'][asn]['force'] == True: force = True
                     if "multi" in self.files['config.json']['ASN'][asn] and self.files['config.json']['ASN'][asn]['multi'] == True: multi = True
         else:
             #Filter ports
-            if line['port_dst'] in self.files['config.json']['ignorePorts']: return False,False,[]
+            if line['port_dst'] in self.files['config.json']['ignorePorts']: return False,[None,None],[]
         #Lets go bending
         options = {"force":force,"multi":multi}
         return options,asndata,asnList
@@ -343,26 +336,18 @@ class Bender:
             if options == False: continue
             subnet = asndata[1] if asndata[1] is not None else f"{line['ip_dst']}/32"
             activeSubnets.append(subnet)
+            #Skip if already in history
+            if subnet in self.files['history.json']: continue
             #Check if route for IP already exists
             route = self.cmd("ip r get "+line['ip_dst'])[0]
             if 'vxlan1' in route:
                 print(line['ip_dst'],"route already exists")
                 continue
-            #Filter out old expired ignores
-            self.cleanIgnore()
-            #Filter old checks
-            if subnet in self.files['ignore.json']:
-                if self.files['ignore.json'][subnet] > int(datetime.now().timestamp()): 
-                    #If we checked the IP but did not bend it and the connection is still active, we extend the ignore to prevent sudden bending syndrom
-                    self.files['ignore.json'][subnet] = self.files['ignore.json'][subnet] + 60
-                    continue
             #Limit of current checks, to keep cpu load in okay levels to prevent lags
             if len(threads) <= 30:
                 #Add to History 
                 if subnet not in self.files['history.json']: self.files['history.json'][subnet] = {}
                 self.files['history.json'][subnet] = {'ip':line['ip_dst'],'port':line['port_dst'],'expiry':int(datetime.now().timestamp()) + random.randint(3600, 14400)} #wait 1-4 hours before re-check
-                #Add to Ignore
-                self.files['ignore.json'][subnet] = int(datetime.now().timestamp()) + random.randint(1800, 5400) #ignore for 30-90 minutes
                 threads.append(Thread(target=self.magic, args=([line,options,asndata])))
                 print("Launched",line['ip_dst'])
         history = self.history(activeSubnets)
@@ -386,7 +371,6 @@ class Bender:
                         self.cmd(f'ip route del {entry} via {node} dev vxlan1 table BENDER')
                         break
             self.files['history.json'][data['subnet']]['expiry'] = int(datetime.now().timestamp()) + random.randint(7200, 21600) #wait 2-6 hours before re-check
-            self.files['ignore.json'][data['subnet']] = int(datetime.now().timestamp()) + random.randint(1800, 5400) #ignore for 30-90 minutes
             threads.append(Thread(target=self.magic, args=([line,options,asndata])))
             print("Launched",data['ip'])
 
@@ -397,7 +381,7 @@ class Bender:
             nodeThreads.append(Thread(target=self.checkNode, args=([server])))
         for thread in nodeThreads: thread.start()
         for thread in nodeThreads: thread.join()
-        saving = ['ignore.json','loadBalancing.json','history.json']
+        saving = ['loadBalancing.json','history.json']
         for entry in saving:
             print(f"Saving {entry}")
             with open(self.path+f'/data/{entry}', 'w') as f:
