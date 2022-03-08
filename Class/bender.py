@@ -63,9 +63,10 @@ class Bender:
 
     def getAvrg(self,fping):
         latency = []
-        parsed = re.findall("([0-9.]+).*?([0-9]+.[0-9]).*?([0-9])% loss",fping, re.MULTILINE)
+        parsed = re.findall("([0-9.]+).*?([0-9]+.[0-9]|NaN avg).*?([0-9]+)% loss",fping, re.MULTILINE)
         del parsed[0] #drop the first ping result
         for ip,ms,loss in parsed:
+            if ms == "NaN avg": ms = 65000
             latency.append(ms)
         latency.sort()
         if len(latency) < 5: return 5000
