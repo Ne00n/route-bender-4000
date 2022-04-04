@@ -99,7 +99,6 @@ class Bender:
                 return True
 
     def magic(self,line,options,asndata):
-        origin = 0
         lastIP,direct = self.mtrIP(line['ip_dst'],options,asndata)
         if lastIP is False: exit()
         origin = line['ip_dst']
@@ -131,8 +130,13 @@ class Bender:
         elif diff < 2 and options["force"] == False:
             print("Direct route is better, keeping it for",line['ip_dst'],"Lowest we got",float(latency[0][0]),"ms vs",int(direct),"ms direct")
         elif float(latency[0][0]) < int(direct) or options["force"] == True:
-            if origin == 0: origin = line['ip_dst']
             suffix = "/32"
+            if options['tags']:
+                for entry in latency:
+                    if entry[1] in options['tags'] and entry[0] != 65000:
+                        latency[0][0] = entry[0]
+                        latency[0][1] = entry[1]
+                        break
             if asndata[0] is not None:
                 group = self.checkASNGroup(asndata[0])
                 if group != False:
@@ -143,25 +147,24 @@ class Bender:
                             self.files['loadBalancing.json'][group['asns']] = latency[0][1]
                     suffix = group['settings']['route']
                 else:
-                    for asn,settings in self.files['config.json']['ASN'].items():
-                        if int(asn) == int(asndata[0]):
-                            suffix = settings['route']
-                            if self.files['config.json']['ASN'][asn]['loadBalancing'] is False:
-                                if asn in self.files['loadBalancing.json']:
-                                    latency[0][1] = self.files['loadBalancing.json'][asn]
-                                else:
-                                    self.files['loadBalancing.json'][asn] = latency[0][1]
-                            break
+                    suffix = options['route']
+                    if options['loadBalancing'] is False:
+                        if asndata[0] in self.files['loadBalancing.json']:
+                            latency[0][1] = self.files['loadBalancing.json'][asndata[0]]
+                        else:
+                            self.files['loadBalancing.json'][asndata[0]] = latency[0][1]
             if suffix == "/32":
-                self.cmd('ip route add '+origin+"/32 via 10.0.251."+latency[0][1]+" dev vxlan1 table BENDER")
+                command = f'ip route add {origin}/32 via 10.0.251.{latency[0][1]} dev vxlan1 table BENDER'
+                resp = self.cmd(command)
             else:
                 if suffix == "dyn":
                     origin = asndata[1].split("/")[0]
                     suffix = "/"+asndata[1].split("/")[1]
                 else:
                     origin = '.'.join(origin.split('.')[:-1]+["0"])
-                self.cmd('ip route add '+origin+suffix+" via 10.0.251."+latency[0][1]+" dev vxlan1 table BENDER")
-            print("Routed",line['ip_dst'],"via","10.0.251."+latency[0][1],"improved latency by",diff,"ms")
+                command = f'ip route add {origin+suffix} via 10.0.251.{latency[0][1]} dev vxlan1 table BENDER'
+                resp = self.cmd(command)
+            print("Routed",origin,"via","10.0.251."+latency[0][1],"improved latency by",diff,"ms")
 
     def checkNode(self,server):
         lastByte = re.findall("^([0-9.]+)\.([0-9]+)",server, re.MULTILINE | re.DOTALL)
@@ -281,38 +284,35 @@ class Bender:
         return recheck
 
     def asnLookUp(self,asnList,line):
-        options,asndata = {"force":False,"multi":False},None
+        options,asndata = {"loadBalancing":True,"route":"/32","ignore":False,"ports":True,"force":False,"multi":False,"tags":[]},None
         asndata = self.asndb.lookup(line['ip_dst'])
-        force,multi = False,False
+        #Check if the lookup was successfull
         if asndata[0] is not None:
             asn = str(asndata[0])
             group = self.checkASNGroup(asn)
             if group != False and self.files['config.json']['ASNGroups'][group['asns']]['loadBalancing'] == False and group['asns'] in asnList and group['asns'] not in self.files['loadBalancing.json']: return False,[None,None],[]
-            if asn in self.files['config.json']['ASN'] and self.files['config.json']['ASN'][asn]['loadBalancing'] == False and asn in asnList and asn not in self.files['loadBalancing.json']: return False,[None,None],[]
+            if asn in self.files['config.json']['ASN'] and self.files['config.json']['ASN'][asn]['loadBalancing'] == False and asn in asnList and asn not in self.files['loadBalancing.json']: return False,[None,None],[]            
             if group != False:
                 asnList.append(group['asns'])
-                if group['settings']['ports'] == True:
-                    #Filter ports
-                    if line['port_dst'] in self.files['config.json']['ignorePorts']: return False,[None,None],[]
-                #Skip if Ignore is set to true
-                if group['settings']['ignore'] == True: return False,[None,None],[]
-                if "force" in group['settings'] and group['settings']['force'] == True: force = True
-                if "multi" in group['settings'] and group['settings']['multi'] == True: multi = True
+                base = group['settings']
             else:
                 asnList.append(asn)
-                if asn not in self.files['config.json']['ASN'] or self.files['config.json']['ASN'][asn]['ports'] == True:
-                    #Filter ports
-                    if line['port_dst'] in self.files['config.json']['ignorePorts']: return False,[None,None],[]
-                #Skip if Ignore is set to true
-                if asn in self.files['config.json']['ASN']:
-                    if self.files['config.json']['ASN'][asn]['ignore'] == True: return False,[None,None],[]
-                    if "force" in self.files['config.json']['ASN'][asn] and self.files['config.json']['ASN'][asn]['force'] == True: force = True
-                    if "multi" in self.files['config.json']['ASN'][asn] and self.files['config.json']['ASN'][asn]['multi'] == True: multi = True
+                base = self.files['config.json']['ASN'][asn] if asn in self.files['config.json']['ASN'] else options
+            #Check Ignore
+            if base['ignore'] == True: return False,[None,None],[]
+            #Filter Ports
+            if base['ports'] == True:
+                if line['port_dst'] in self.files['config.json']['ignorePorts']: return False,[None,None],[]
+            #Check Options
+            if "loadBalancing" in base: options['loadBalancing'] = base['loadBalancing']
+            if "force" in base: options['force'] = base['force']
+            if "multi" in base: options['multi'] = base['multi']
+            if "tags" in base: options['tags'] = base['tags']
+            options['route'] = base['route']
         else:
             #Filter ports
             if line['port_dst'] in self.files['config.json']['ignorePorts']: return False,[None,None],[]
         #Lets go bending
-        options = {"force":force,"multi":multi}
         return options,asndata,asnList
 
     def run(self):
