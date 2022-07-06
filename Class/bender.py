@@ -345,7 +345,7 @@ class Bender:
                 print(line['ip_dst'],"route already exists")
                 continue
             #Limit of current checks, to keep cpu load in okay levels to prevent lags
-            if len(threads) <= 30:
+            if len(threads) <= self.files['config.json']['threads']:
                 #Add to History 
                 if subnet not in self.files['history.json']: self.files['history.json'][subnet] = {}
                 self.files['history.json'][subnet] = {'ip':line['ip_dst'],'port':line['port_dst'],'expiry':int(datetime.now().timestamp()) + random.randint(3600, 14400)} #wait 1-4 hours before re-check
@@ -354,7 +354,7 @@ class Bender:
         history = self.history(activeSubnets)
         print("Checking history")
         for data in history:
-            if len(threads) > 30: break
+            if len(threads) > self.files['config.json']['threads']: break
             #Filter ASN if loadBalancing... is disabled/enabled
             line = {"ip_dst":data['ip'],"port_dst":data['port']}
             options,asndata,asnList = self.asnLookUp(asnList,line)
