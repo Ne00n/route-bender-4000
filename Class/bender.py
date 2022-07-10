@@ -264,13 +264,12 @@ class Bender:
         directAvrg = results["direct"]
         print("Got " + str(directAvrg) +"ms direct")
         del results["direct"]
-        print("--- Top 5 ---")
-        save,count = 0,0
+        print("--- Results ---")
+        save = 0
         for server, latency in results.items():
-            if count < 5: print("Got " + str(latency)+"ms" + " from " + server)
+            print("Got " + str(latency)+"ms" + " from " + server)
             if latency < directAvrg +2:
                 if save == 0: save = directAvrg - latency
-            count += 1
         print("--- Save ---")
         print("Theoretical save:",str(round(save,2))+"ms")
         print("--- end ---")
