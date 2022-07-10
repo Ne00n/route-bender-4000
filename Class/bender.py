@@ -191,6 +191,7 @@ class Bender:
             ip,sub = asndata[1].split("/")
             target += " "+ip
             for entry in ips: target += f" {ip[:-1]}{entry}"
+        print(f"MTR running {targer}")
         direct = self.cmd("fping -c6 "+target)
         if asndata[0] is not None and options["multi"] == True:
             results = direct[1].split("\n")
@@ -218,6 +219,7 @@ class Bender:
                     print(lastIP+" is private, skipping")
                     return False,False
                 if lastIP != "???":
+                    print(f"MTR running {lastIP}")
                     direct = self.cmd("fping -c6 "+lastIP)
                 if '100%' in direct[1]:
                     print(target,"("+lastIP+") not reachable.")
