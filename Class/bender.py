@@ -191,7 +191,7 @@ class Bender:
             ip,sub = asndata[1].split("/")
             target += " "+ip
             for entry in ips: target += f" {ip[:-1]}{entry}"
-        print(f"MTR running {targer}")
+        print(f"MTR running {target}")
         direct = self.cmd("fping -c6 "+target)
         if asndata[0] is not None and options["multi"] == True:
             results = direct[1].split("\n")
