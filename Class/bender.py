@@ -131,9 +131,16 @@ class Bender:
             print("Direct route is better, keeping it for",line['ip_dst'],"Lowest we got",float(latency[0][0]),"ms vs",int(direct),"ms direct")
         elif float(latency[0][0]) < int(direct) or options["force"] == True:
             suffix = "/32"
-            if options['tags']:
+            if options['whitelist']:
                 for entry in latency:
-                    if entry[1] in options['tags'] and entry[0] != 65000:
+                    if entry[1] in options['whitelist'] and entry[0] != 65000:
+                        latency[0][0] = entry[0]
+                        latency[0][1] = entry[1]
+                        break
+            if options['blacklist']:
+                for entry in latency:
+                    if entry[1] in options['blacklist']: continue
+                    if entry[0] != 65000:
                         latency[0][0] = entry[0]
                         latency[0][1] = entry[1]
                         break
@@ -285,7 +292,7 @@ class Bender:
         return recheck
 
     def asnLookUp(self,asnList,line):
-        options,asndata = {"loadBalancing":True,"route":"/32","ignore":False,"ports":True,"force":False,"multi":False,"tags":[]},None
+        options,asndata = {"loadBalancing":True,"route":"/32","ignore":False,"ports":True,"force":False,"multi":False,"whitelist":[],"blacklist":[]},None
         asndata = self.asndb.lookup(line['ip_dst'])
         #Check if the lookup was successfull
         if asndata[0] is not None:
@@ -308,7 +315,8 @@ class Bender:
             if "loadBalancing" in base: options['loadBalancing'] = base['loadBalancing']
             if "force" in base: options['force'] = base['force']
             if "multi" in base: options['multi'] = base['multi']
-            if "tags" in base: options['tags'] = base['tags']
+            if "whitelist" in base: options['whitelist'] = base['whitelist']
+            if "blacklist" in base: options['blacklist'] = base['blacklist']
             options['route'] = base['route']
         else:
             #Filter ports
