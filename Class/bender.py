@@ -389,7 +389,9 @@ class Bender:
         nodeThreads = []
         for server in self.files['nodes.json']:
             nodeThreads.append(Thread(target=self.checkNode, args=([server])))
-        for thread in nodeThreads: thread.start()
+        for thread in nodeThreads: 
+            thread.start()
+            time.sleep(0.05)
         for thread in nodeThreads: thread.join()
         saving = ['loadBalancing.json','history.json']
         for entry in saving:
