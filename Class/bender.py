@@ -198,7 +198,7 @@ class Bender:
             ip,sub = asndata[1].split("/")
             target += " "+ip
             for entry in ips: target += f" {ip[:-1]}{entry}"
-        print(f"MTR running {target}")
+        print(f"fping running {target}")
         direct = self.cmd("fping -c6 "+target)
         if asndata[0] is not None and options["multi"] == True:
             results = direct[1].split("\n")
@@ -218,6 +218,7 @@ class Bender:
                 if target in result: direct[1] +=result+"\n"
         if '100%' in direct[1]:
             print(target,"not reachable, trying to MTR")
+            print(f"MTR running {target}")
             result = self.cmd('mtr '+target+' --report --report-cycles 4 --no-dns')
             parsed = re.findall("-- ([0-9.]+)",result[0], re.MULTILINE)
             for run in range(1,3):
@@ -226,7 +227,7 @@ class Bender:
                     print(lastIP+" is private, skipping")
                     return False,False
                 if lastIP != "???":
-                    print(f"MTR running {lastIP}")
+                    print(f"fping running {lastIP}")
                     direct = self.cmd("fping -c6 "+lastIP)
                 if '100%' in direct[1]:
                     print(target,"("+lastIP+") not reachable.")
