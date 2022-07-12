@@ -133,14 +133,14 @@ class Bender:
             suffix = "/32"
             if options['whitelist']:
                 for entry in latency:
-                    if entry[1] in options['whitelist'] and entry[0] != 65000:
+                    if int(entry[1]) in options['whitelist'] and int(entry[0]) != 65000:
                         latency[0][0] = entry[0]
                         latency[0][1] = entry[1]
                         break
             if options['blacklist']:
                 for entry in latency:
-                    if entry[1] in options['blacklist']: continue
-                    if entry[0] != 65000:
+                    if int(entry[1]) in options['blacklist']: continue
+                    if int(entry[0]) != 65000:
                         latency[0][0] = entry[0]
                         latency[0][1] = entry[1]
                         break
