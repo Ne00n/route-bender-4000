@@ -1,5 +1,5 @@
 from concurrent.futures import ProcessPoolExecutor as Pool
-import random, pyasn, time, json, re, os
+import random, logging, pyasn, time, json, re, os
 from netaddr import IPNetwork, IPAddress
 from multiprocessing import Queue
 from datetime import datetime
@@ -9,6 +9,7 @@ from Class.tools import Tools
 class Bender(Tools):
     def __init__(self,path,load=True):
         filesToLoad = {path+'/config/nodes.json':True,path+'/config/config.json':True,'/tmp/pmacct_avg.json':True,path+'/data/loadBalancing.json':False,path+'/data/history.json':False}
+        logging.basicConfig(filename='bender.log', filemode='a', format='%(levelname)s - %(message)s',datefmt='%H:%M:%S',level=logging.DEBUG)
         self.files = {}
         if load:
             print("Loading asn")
@@ -303,6 +304,7 @@ class Bender(Tools):
         print("Getting Results")
         for result in results:
             print(result['msg'])
+            logging.info(result['msg'])
         #check nodes
         print("Checking Nodes")
         nodeThreads = []
