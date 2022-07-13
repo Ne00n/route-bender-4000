@@ -264,6 +264,7 @@ class Bender(Tools):
             route = self.cmd("ip r get "+line['ip_dst'])[0]
             if 'vxlan1' in route:
                 print(line['ip_dst'],"route already exists")
+                logging.info(line['ip_dst'],"route already exists")
                 continue
             #Limit of current checks, to keep cpu load in okay levels to prevent lags
             if len(threads) <= self.files['config.json']['threads']:
@@ -290,6 +291,7 @@ class Bender(Tools):
                 for entry in parsed:
                     if IPAddress(data['ip']) in IPNetwork(entry):
                         print(f"Removing {entry} from history.json")
+                        logging.info(f"Removing {entry} from history.json")
                         self.cmd(f'ip route del {entry} via {node} dev vxlan1 table BENDER')
                         break
             self.files['history.json'][data['subnet']]['expiry'] = int(datetime.now().timestamp()) + random.randint(7200, 21600) #wait 2-6 hours before re-check
