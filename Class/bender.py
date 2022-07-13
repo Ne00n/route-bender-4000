@@ -144,7 +144,8 @@ class Bender(Tools):
         logging.debug(f"Checking if 10.0.251.{lastByte[0][1]} is alive")
         direct = self.cmd('fping -c3 10.0.251.'+lastByte[0][1])[1]
         if '100%' in direct:
-            logging.debug(f"10.0.251.{lastByte[0][1]} is down, removing routes")
+            logging.debug(direct)
+            logging.warning(f"10.0.251.{lastByte[0][1]} is down, removing routes")
             routes = self.cmd('ip route show table BENDER via 10.0.251.'+lastByte[0][1])[0]
             parsed = re.findall("^([0-9.\/]+)",routes, re.MULTILINE | re.DOTALL)
             for entry in parsed:
@@ -278,6 +279,7 @@ class Bender(Tools):
                 print("Adding",line['ip_dst'])
         history = self.history(activeSubnets)
         print("Checking history")
+        logging.debug("Checking history")
         for data in history:
             if len(threads) > self.files['config.json']['threads']: break
             #Filter ASN if loadBalancing... is disabled/enabled
@@ -299,7 +301,8 @@ class Bender(Tools):
                         break
             self.files['history.json'][data['subnet']]['expiry'] = int(datetime.now().timestamp()) + random.randint(7200, 21600) #wait 2-6 hours before re-check
             threads.append({"line":line,"options":options,"asndata":asndata,"files":self.files})
-            print("Adding",data['ip'])
+            print(f"Adding {data['ip']}")
+            logging.debug(f"Adding {data['ip']}")
 
         #dispatch
         pool = Pool(max_workers = self.files['config.json']['threads'])
