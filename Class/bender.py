@@ -327,3 +327,4 @@ class Bender(Tools):
             print(f"Saving {entry}")
             with open(self.path+f'/data/{entry}', 'w') as f:
                 json.dump(self.files[entry], f)
+        logging.debug("Done")
