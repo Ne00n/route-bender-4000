@@ -141,9 +141,10 @@ class Bender(Tools):
         
     def checkNode(self,server):
         lastByte = re.findall("^([0-9.]+)\.([0-9]+)",server, re.MULTILINE | re.DOTALL)
-        #print("Checking if","10.0.251."+lastByte[0][1],"is alive")
+        logging.debug(f"Checking if 10.0.251.{lastByte[0][1]} is alive")
         direct = self.cmd('fping -c3 10.0.251.'+lastByte[0][1])[1]
         if '100%' in direct:
+            logging.debug(f"10.0.251.{lastByte[0][1]} is down, removing routes")
             routes = self.cmd('ip route show table BENDER via 10.0.251.'+lastByte[0][1])[0]
             parsed = re.findall("^([0-9.\/]+)",routes, re.MULTILINE | re.DOTALL)
             for entry in parsed:
