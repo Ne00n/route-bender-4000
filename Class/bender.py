@@ -137,7 +137,7 @@ class Bender(Tools):
                     origin = '.'.join(origin.split('.')[:-1]+["0"])
                 command = f'ip route add {origin+suffix} via 10.0.251.{latency[0][1]} dev vxlan1 table BENDER'
                 resp = Bender.cmd(command)
-        return {"success":True,"msg":f"Routed {origin} via 10.0.251{latency[0][1]} improved latency by {round(diff,1)}ms"}
+        return {"success":True,"msg":f"Routed {origin} via 10.0.251.{latency[0][1]} improved latency by {round(diff,1)}ms"}
         
     def checkNode(self,server):
         lastByte = re.findall("^([0-9.]+)\.([0-9]+)",server, re.MULTILINE | re.DOTALL)
@@ -240,8 +240,10 @@ class Bender(Tools):
     def run(self):
         ips,asnList,activeSubnets,threads = [],[],[],[]
         print("Launching")
+        logging.debug("Launching")
         self.prepare()
         print("Checking pmacct")
+        logging.debug("Checking pmacct")
         for row in self.files['pmacct_avg.json'].split('\n'):
             if row.strip() == "": continue
             line = json.loads(row)
