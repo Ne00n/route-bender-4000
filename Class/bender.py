@@ -264,7 +264,7 @@ class Bender(Tools):
             route = self.cmd("ip r get "+line['ip_dst'])[0]
             if 'vxlan1' in route:
                 print(line['ip_dst'],"route already exists")
-                logging.info(line['ip_dst'],"route already exists")
+                logging.info(f"{line['ip_dst']} route already exists")
                 continue
             #Limit of current checks, to keep cpu load in okay levels to prevent lags
             if len(threads) <= self.files['config.json']['threads']:
