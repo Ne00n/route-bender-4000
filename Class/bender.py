@@ -79,9 +79,10 @@ class Bender(Tools):
                 if data['parsed']:
                     avrg = Bender.getAvrg(data['result'])
                     latency.append([avrg,data['lastByte'][0][1]])
-                    #print("Got",str(avrg)+"ms","to",data['ip'],"from",data['server'])
+                    logging.debug(f"Got {avrg}ms to {data['ip']} from {data['server']}")
                 else:
-                    print(line['ip_dst']+" is not reachable via "+data['server'])
+                    print(f"{line['ip_dst']} is not reachable via {data['server']}")
+                    logging.warning(f"{line['ip_dst']} is not reachable via {data['server']}")
                 count += 1
             time.sleep(0.05)
         for thread in threads:

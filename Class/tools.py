@@ -89,7 +89,7 @@ class Tools:
         del parsed[0] #drop the first ping result
         for ip,ms,loss in parsed:
             if ms == "NaN avg": ms = 65000
-            latency.append(ms)
+            latency.append(float(ms))
         latency.sort()
         if len(latency) < 5: return 5000
         return round((float(latency[0]) + float(latency[1]) + float(latency[2])) / 3,2)
