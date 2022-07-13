@@ -10,11 +10,11 @@ class Bender(Tools):
     def __init__(self,path,load=True):
         filesToLoad = {path+'/config/nodes.json':True,path+'/config/config.json':True,'/tmp/pmacct_avg.json':True,path+'/data/loadBalancing.json':False,path+'/data/history.json':False}
         folder = os.path.dirname(os.path.realpath(__file__))
-        logging.basicConfig(filename=f"{path}/bender.log", filemode='a', format='%(levelname)s - %(message)s',datefmt='%H:%M:%S',level=logging.DEBUG)
+        logging.basicConfig(filename=f"{folder}/bender.log", filemode='a', format='%(levelname)s - %(message)s',datefmt='%H:%M:%S',level=logging.DEBUG)
         self.files = {}
         if load:
             print("Loading asn")
-            self.asndb = pyasn.pyasn(folder+'/asn.dat')
+            self.asndb = pyasn.pyasn(path+'/asn.dat')
             self.path = path
             for file,required in filesToLoad.items():
                 print(f"Loading {file}")
