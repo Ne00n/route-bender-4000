@@ -125,7 +125,7 @@ class Bender(Tools):
                         else:
                             files['loadBalancing.json'][asndata[0]] = latency[0][1]
             if suffix == "/32":
-                command = f'ip route add {line['ip_dst']}/32 via 10.0.251.{latency[0][1]} dev vxlan1 table BENDER'
+                command = f"ip route add {line['ip_dst']}/32 via 10.0.251.{latency[0][1]} dev vxlan1 table BENDER"
                 resp = Bender.cmd(command)
             else:
                 if suffix == "dyn":
