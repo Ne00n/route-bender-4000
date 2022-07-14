@@ -300,7 +300,6 @@ class Bender(Tools):
             threads.append({"subnet":subnet,"line":line,"options":options,"asndata":asndata,"files":self.files})
             print(f"Re-Checking {data['ip']}")
             logging.debug(f"Adding {data['ip']}")
-
         #dispatch
         pool = Pool(max_workers = self.files['config.json']['threads'])
         results = pool.map(self.magic, threads)
@@ -318,7 +317,6 @@ class Bender(Tools):
             else:
                 #wait 2-6 hours before re-check
                 self.files['history.json'][result['subnet']] = {'ip':result['line']['ip_dst'],'port':result['line']['port_dst'],'expiry':int(datetime.now().timestamp()) + random.randint(7200, 21600)}
-
         #check nodes
         print("Checking Nodes")
         nodeThreads = []
