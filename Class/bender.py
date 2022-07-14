@@ -129,11 +129,11 @@ class Bender(Tools):
                 resp = Bender.cmd(command)
             else:
                 if suffix == "dyn":
-                    line['ip_dst'] = asndata[1].split("/")[0]
+                    tmpIP = asndata[1].split("/")[0]
                     suffix = "/"+asndata[1].split("/")[1]
                 else:
-                    line['ip_dst'] = '.'.join(line['ip_dst'].split('.')[:-1]+["0"])
-                command = f'ip route add {line['ip_dst']+suffix} via 10.0.251.{latency[0][1]} dev vxlan1 table BENDER'
+                    tmpIP = '.'.join(line['ip_dst'].split('.')[:-1]+["0"])
+                command = f'ip route add {tmpIP}{suffix} via 10.0.251.{latency[0][1]} dev vxlan1 table BENDER'
                 resp = Bender.cmd(command)
         return {"success":True,"possible":True,"line":line,"subnet":subnet,"msg":f"Routed {line['ip_dst']} via 10.0.251.{latency[0][1]} improved latency by {round(diff,1)}ms"}
         
