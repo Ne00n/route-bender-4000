@@ -66,11 +66,9 @@ class Bender(Tools):
         print(f"Running {line['ip_dst']}")
         lastIP,direct = Bender.mtrIP(line['ip_dst'],options,asndata)
         if lastIP is False: return {"success":True,"possible":True,"line":line,"subnet":subnet,"msg":f"Could not optimize {line['ip_dst']}, no pingable IP found"}
-        origin = line['ip_dst']
-        line['ip_dst'] = lastIP
         latency,queue,outQueue,count = [],Queue(),Queue(),0
         for server in files['nodes.json']:
-            queue.put({"server":server,"ip":line['ip_dst']})
+            queue.put({"server":server,"ip":lastIP})
         threads = [Thread(target=Bender.fpingWorker, args=(queue,outQueue,)) for _ in range(int(len(files['nodes.json']) / 3))]
         for thread in threads: thread.start()
         while len(files['nodes.json']) != count:
@@ -81,8 +79,8 @@ class Bender(Tools):
                     latency.append([avrg,data['lastByte'][0][1]])
                     logging.debug(f"Got {avrg}ms to {data['ip']} from {data['server']}")
                 else:
-                    print(f"{line['ip_dst']} is not reachable via {data['server']}")
-                    logging.warning(f"{line['ip_dst']} is not reachable via {data['server']}")
+                    print(f"{lastIP} is not reachable via {data['server']}")
+                    logging.warning(f"{lastIP} is not reachable via {data['server']}")
                 count += 1
             time.sleep(0.05)
         for thread in threads:
@@ -127,17 +125,17 @@ class Bender(Tools):
                         else:
                             files['loadBalancing.json'][asndata[0]] = latency[0][1]
             if suffix == "/32":
-                command = f'ip route add {origin}/32 via 10.0.251.{latency[0][1]} dev vxlan1 table BENDER'
+                command = f'ip route add {line['ip_dst']}/32 via 10.0.251.{latency[0][1]} dev vxlan1 table BENDER'
                 resp = Bender.cmd(command)
             else:
                 if suffix == "dyn":
-                    origin = asndata[1].split("/")[0]
+                    line['ip_dst'] = asndata[1].split("/")[0]
                     suffix = "/"+asndata[1].split("/")[1]
                 else:
-                    origin = '.'.join(origin.split('.')[:-1]+["0"])
-                command = f'ip route add {origin+suffix} via 10.0.251.{latency[0][1]} dev vxlan1 table BENDER'
+                    line['ip_dst'] = '.'.join(line['ip_dst'].split('.')[:-1]+["0"])
+                command = f'ip route add {line['ip_dst']+suffix} via 10.0.251.{latency[0][1]} dev vxlan1 table BENDER'
                 resp = Bender.cmd(command)
-        return {"success":True,"possible":True,"line":line,"subnet":subnet,"msg":f"Routed {origin} via 10.0.251.{latency[0][1]} improved latency by {round(diff,1)}ms"}
+        return {"success":True,"possible":True,"line":line,"subnet":subnet,"msg":f"Routed {line['ip_dst']} via 10.0.251.{latency[0][1]} improved latency by {round(diff,1)}ms"}
         
     def checkNode(self,server):
         lastByte = re.findall("^([0-9.]+)\.([0-9]+)",server, re.MULTILINE | re.DOTALL)
