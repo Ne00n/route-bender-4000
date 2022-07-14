@@ -62,10 +62,10 @@ class Bender(Tools):
 
     @staticmethod
     def magic(payload):
-        line,options,asndata,files = payload['line'],payload['options'],payload['asndata'],payload['files']
+        line,options,asndata,files,subnet = payload['line'],payload['options'],payload['asndata'],payload['files'],payload['subnet']
         print(f"Running {line['ip_dst']}")
         lastIP,direct = Bender.mtrIP(line['ip_dst'],options,asndata)
-        if lastIP is False: return {"success":False,"msg":f"Could not optimize {line['ip_dst']}, no pingable IP found"}
+        if lastIP is False: return {"success":True,"possible":True,"line":line,"subnet":subnet,"msg":f"Could not optimize {line['ip_dst']}, no pingable IP found"}
         origin = line['ip_dst']
         line['ip_dst'] = lastIP
         latency,queue,outQueue,count = [],Queue(),Queue(),0
@@ -92,9 +92,9 @@ class Bender(Tools):
         direct = Bender.getAvrg(direct[0])
         diff = direct - float(latency[0][0])
         if diff < 2 and diff > 0 and options["force"] == False:
-            return {"success":False,"msg":f"Difference less than 2ms, skipping {float(direct)} vs {float(latency[0][0])} for {line['ip_dst']}"}
+            return {"success":True,"possible":True,"line":line,"subnet":subnet,"msg":f"Difference less than 2ms, skipping {float(direct)} vs {float(latency[0][0])} for {line['ip_dst']}"}
         elif diff < 2 and options["force"] == False:
-            return {"success":False,"msg":f"Direct route is better, keeping it for {line['ip_dst']} Lowest we got {float(latency[0][0])}ms vs {int(direct)}ms direct"}
+            return {"success":True,"possible":True,"line":line,"subnet":subnet,"msg":f"Direct route is better, keeping it for {line['ip_dst']} Lowest we got {float(latency[0][0])}ms vs {int(direct)}ms direct"}
         elif float(latency[0][0]) < int(direct) or options["force"] == True:
             suffix = "/32"
             if options['whitelist']:
@@ -137,7 +137,7 @@ class Bender(Tools):
                     origin = '.'.join(origin.split('.')[:-1]+["0"])
                 command = f'ip route add {origin+suffix} via 10.0.251.{latency[0][1]} dev vxlan1 table BENDER'
                 resp = Bender.cmd(command)
-        return {"success":True,"msg":f"Routed {origin} via 10.0.251.{latency[0][1]} improved latency by {round(diff,1)}ms"}
+        return {"success":True,"possible":True,"line":line,"subnet":subnet,"msg":f"Routed {origin} via 10.0.251.{latency[0][1]} improved latency by {round(diff,1)}ms"}
         
     def checkNode(self,server):
         lastByte = re.findall("^([0-9.]+)\.([0-9]+)",server, re.MULTILINE | re.DOTALL)
@@ -272,15 +272,13 @@ class Bender(Tools):
                 continue
             #Limit of current checks, to keep cpu load in okay levels to prevent lags
             if len(threads) <= self.files['config.json']['threads']:
-                #Add to History 
-                if subnet not in self.files['history.json']: self.files['history.json'][subnet] = {}
-                self.files['history.json'][subnet] = {'ip':line['ip_dst'],'port':line['port_dst'],'expiry':int(datetime.now().timestamp()) + random.randint(3600, 14400)} #wait 1-4 hours before re-check
-                threads.append({"line":line,"options":options,"asndata":asndata,"files":self.files})
-                print("Adding",line['ip_dst'])
+                threads.append({"subnet":subnet,"line":line,"options":options,"asndata":asndata,"files":self.files})
+                print("Checking",line['ip_dst'])
         history = self.history(activeSubnets)
         print("Checking history")
         logging.debug("Checking history")
         for data in history:
+            #Check if we already hit the current checks limit
             if len(threads) > self.files['config.json']['threads']: break
             #Filter ASN if loadBalancing... is disabled/enabled
             line = {"ip_dst":data['ip'],"port_dst":data['port']}
@@ -299,9 +297,8 @@ class Bender(Tools):
                         logging.info(f"Removing {entry} from history.json")
                         self.cmd(f'ip route del {entry} via {node} dev vxlan1 table BENDER')
                         break
-            self.files['history.json'][data['subnet']]['expiry'] = int(datetime.now().timestamp()) + random.randint(7200, 21600) #wait 2-6 hours before re-check
-            threads.append({"line":line,"options":options,"asndata":asndata,"files":self.files})
-            print(f"Adding {data['ip']}")
+            threads.append({"subnet":subnet,"line":line,"options":options,"asndata":asndata,"files":self.files})
+            print(f"Re-Checking {data['ip']}")
             logging.debug(f"Adding {data['ip']}")
 
         #dispatch
@@ -314,6 +311,14 @@ class Bender(Tools):
         for result in results:
             print(result['msg'])
             logging.info(result['msg'])
+            if result['subnet'] not in self.files['history.json']: self.files['history.json'][result['subnet']] = {}
+            if result['possible'] == False:
+                #wait 4-8 hours before re-check, since we could not optimize
+                self.files['history.json'][result['subnet']] = {'ip':result['line']['ip_dst'],'port':result['line']['port_dst'],'expiry':int(datetime.now().timestamp()) + random.randint(14400, 28800)}
+            else:
+                #wait 2-6 hours before re-check
+                self.files['history.json'][result['subnet']] = {'ip':result['line']['ip_dst'],'port':result['line']['port_dst'],'expiry':int(datetime.now().timestamp()) + random.randint(7200, 21600)}
+
         #check nodes
         print("Checking Nodes")
         nodeThreads = []
