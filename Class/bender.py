@@ -295,7 +295,7 @@ class Bender(Tools):
                         logging.info(f"Removing {entry} from history.json")
                         self.cmd(f'ip route del {entry} via {node} dev vxlan1 table BENDER')
                         break
-            threads.append({"subnet":subnet,"line":line,"options":options,"asndata":asndata,"files":self.files})
+            threads.append({"subnet":data['subnet'],"line":line,"options":options,"asndata":asndata,"files":self.files})
             print(f"Re-Checking {data['ip']}")
             logging.debug(f"Adding {data['ip']}")
         #dispatch
