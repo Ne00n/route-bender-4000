@@ -271,7 +271,8 @@ class Bender(Tools):
             #Limit of current checks, to keep cpu load in okay levels to prevent lags
             if len(threads) <= self.files['config.json']['threads']:
                 threads.append({"subnet":subnet,"line":line,"options":options,"asndata":asndata,"files":self.files})
-                print("Checking",line['ip_dst'])
+                print(f"Analyzing {line['ip_dst']}")
+                logging.info(f"Analyzing {line['ip_dst']}")
         history = self.history(activeSubnets)
         print("Checking history")
         logging.debug("Checking history")
@@ -296,8 +297,8 @@ class Bender(Tools):
                         self.cmd(f'ip route del {entry} via {node} dev vxlan1 table BENDER')
                         break
             threads.append({"subnet":data['subnet'],"line":line,"options":options,"asndata":asndata,"files":self.files})
-            print(f"Re-Checking {data['ip']}")
-            logging.debug(f"Adding {data['ip']}")
+            print(f"Analyzing {data['ip']}")
+            logging.info(f"Analyzing {data['ip']}")
         #dispatch
         pool = Pool(max_workers = self.files['config.json']['threads'])
         results = pool.map(self.magic, threads)
