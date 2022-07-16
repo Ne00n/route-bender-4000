@@ -11,6 +11,20 @@ Getting lower latency while gaming online
 **Setup**<br />
 [Wireguard](https://github.com/wireguard) as transport network + entry point<br />
 
+**Features**<br >
+- Automatic Latency optimization<br >
+Just game seriously
+- Cutting Edge Latency detection<br>
+In case a IP does not like to ping, it will MTR it, plus some other stuff
+- Cutting Edge rebending on idle connections<br >
+If a connection is idle, it will be rebended after x hours to offer the lowest latency
+- Rebending Protection on active connections<br >
+If a connection cannot be optimized currently, it will be ignored until idle
+- Packetloss bending protection<br >
+Won't bend if Packetloss is detected over a specific route
+- Pray & Disconnect if exit dies<br >
+If any exit dies, all routes will be removed once detected
+
 **Prepare**<br />
 ```
 echo '333 BENDER' >> /etc/iproute2/rt_tables
@@ -30,13 +44,15 @@ apt-get install -y pmacct python3 python3-pip && pip3 install pyasn
 **Usage**<br />
 ```
 python3 bender.py
+python3 bender.py debug 1.1.1.1
+python3 bender.py show
 python3 bender.py clear
 ```
 pmacct will execute bender.py every 60s, but you can still do it manually
 
 **Update asn data**
 ```
-pyasn_util_download.py --latest && pyasn_util_convert.py --single rib.2021* asn.dat
+pyasn_util_download.py --latest && pyasn_util_convert.py --single rib.202* asn.dat
 ```
 
 **Settings**<br />
@@ -51,7 +67,7 @@ the first IP that does a connection to that ASN will determine the server for th
 
 If the latency improvement is below 2ms or none, you can force bending by setting force to True<br />
 
-You can define the size of the subnet that will be used to route, <br />
+You can define the size of the subnet that will be used to route /24 or /32 (default, <br />
 however I suggest just use dyn instead, which will use the actual size.<br />
 
 You can enable multi if the primary IP is not pingable it tries to figure out the gateway.<br />
