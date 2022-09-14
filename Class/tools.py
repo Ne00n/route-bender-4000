@@ -56,6 +56,7 @@ class Tools:
                 if '100%' in direct[1]:
                     print(target,"("+lastIP+") not reachable.")
                 else:
+                    print(f"Found reachable IP in MTR {lastIP}")
                     return lastIP,direct
                 if run == 2:
                     print("Could not find pingable IP for",target)
