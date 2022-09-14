@@ -60,6 +60,15 @@ class Bender(Tools):
         for route in routes:
             print(route)
 
+    def optimize(self,target):
+        line = {"ip_dst":target}
+        options,asndata,asnList = self.asnLookUp([],line)
+        if options == False: exit("Options empty")
+        subnet = asndata[1] if asndata[1] is not None else f"{line['ip_dst']}/32"
+        payload = {"subnet":subnet,"line":line,"options":options,"asndata":asndata,"files":self.files}
+        result = self.magic(payload)
+        print(result['msg'])
+
     @staticmethod
     def magic(payload):
         line,options,asndata,files,subnet = payload['line'],payload['options'],payload['asndata'],payload['files'],payload['subnet']

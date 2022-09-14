@@ -45,6 +45,7 @@ apt-get install -y pmacct python3 python3-pip && pip3 install pyasn
 ```
 python3 bender.py
 python3 bender.py debug 1.1.1.1
+python3 bender.py optimize 1.1.1.1
 python3 bender.py show
 python3 bender.py clear
 ```
