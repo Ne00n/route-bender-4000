@@ -254,6 +254,10 @@ class Bender(Tools):
 
     def run(self):
         ips,asnList,activeSubnets,threads = [],[],[],[]
+        running = self.cmd('ps ax | grep "bender.py"')[0]
+        if len(running.split("\n")) > 4:
+            logging.warning("bender.py already running, exiting")
+            exit("bender.py already running, exiting")
         print("Launching")
         logging.debug("Launching")
         self.prepare()
