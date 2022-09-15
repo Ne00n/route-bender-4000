@@ -60,11 +60,17 @@ class Bender(Tools):
         for route in routes:
             print(route)
 
-    def optimize(self,target):
-        line = {"ip_dst":target}
+    def optimize(self,target,port):
+        line = {"ip_dst":target,"port_dst":port}
         options,asndata,asnList = self.asnLookUp([],line)
         if options == False: exit("Options empty")
         subnet = asndata[1] if asndata[1] is not None else f"{line['ip_dst']}/32"
+        print(f"Subnet {subnet}")
+        #Skip if already in history
+        if subnet in self.files['history.json']: exit("Subnet already in history.json")
+        #Check if route for IP already exists
+        route = self.cmd("ip r get "+line['ip_dst'])[0]
+        if 'vxlan1' in route: exit(line['ip_dst'],"route already exists")
         payload = {"subnet":subnet,"line":line,"options":options,"asndata":asndata,"files":self.files}
         result = self.magic(payload)
         print(result['msg'])
@@ -239,6 +245,7 @@ class Bender(Tools):
             if "whitelist" in base: options['whitelist'] = base['whitelist']
             if "blacklist" in base: options['blacklist'] = base['blacklist']
             options['route'] = base['route']
+            print(base)
         else:
             #Filter ports
             if line['port_dst'] in self.files['config.json']['ignorePorts']: return False,[None,None],[]
