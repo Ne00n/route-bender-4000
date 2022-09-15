@@ -64,16 +64,16 @@ class Bender(Tools):
         line = {"ip_dst":target,"port_dst":port}
         options,asndata,asnList = self.asnLookUp([],line)
         if options == False: exit("Options empty")
-        subnet = asndata[1] if asndata[1] is not None else f"{line['ip_dst']}/32"
-        print(f"Subnet {subnet}")
+        print(f"Subnet {options['subnet']}")
         #Skip if already in history
-        if subnet in self.files['history.json']: 
-            print(self.files['history.json'][subnet])
+        if options['subnet'] in self.files['history.json']: 
+            print(self.files['history.json'][options['subnet']])
             exit("Subnet already in history.json")
         #Check if route for IP already exists
         route = self.cmd("ip r get "+line['ip_dst'])[0]
-        if 'vxlan1' in route: exit(line['ip_dst'],"route already exists")
-        payload = {"subnet":subnet,"line":line,"options":options,"asndata":asndata,"files":self.files}
+        if 'vxlan1' in route: exit(f"{line['ip_dst']} route already exists")
+        payload = {"subnet":options['subnet'],"line":line,"options":options,"asndata":asndata,"files":self.files}
+        #Optimize
         result = self.magic(payload)
         print(result['msg'])
 
@@ -250,8 +250,9 @@ class Bender(Tools):
             #Subnet
             if options['route'] == "/32":
                 options['subnet'] = f"{line['ip_dst']}/32"
-            elif options['route'] == "24":
-                options['subnet'] = '.'.join(f"{line['ip_dst'].split('.')[:-1]}0/24")
+            elif options['route'] == "/24":
+                tmpIP = '.'.join(line['ip_dst'].split('.')[:-1])
+                options['subnet'] = f"{tmpIP}.0/24"
             elif options['route'] == "dyn":
                 options['subnet'] = asndata[1]
         else:
