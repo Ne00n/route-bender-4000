@@ -315,6 +315,7 @@ class Bender(Tools):
                         logging.info(f"Removing {entry} from routing table")
                         self.cmd(f'ip route del {entry} via {node} dev vxlan1 table BENDER')
                         #Remove from history.json
+                        if not "/" in entry: entry = f"{entry}/32"
                         print(f"Removing {entry} from history.json")
                         logging.info(f"Removing {entry} from history.json")
                         del self.files['history.json'][entry]
