@@ -67,7 +67,9 @@ class Bender(Tools):
         subnet = asndata[1] if asndata[1] is not None else f"{line['ip_dst']}/32"
         print(f"Subnet {subnet}")
         #Skip if already in history
-        if subnet in self.files['history.json']: exit("Subnet already in history.json")
+        if subnet in self.files['history.json']: 
+            print(self.files['history.json'][subnet])
+            exit("Subnet already in history.json")
         #Check if route for IP already exists
         route = self.cmd("ip r get "+line['ip_dst'])[0]
         if 'vxlan1' in route: exit(line['ip_dst'],"route already exists")
