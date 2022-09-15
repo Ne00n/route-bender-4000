@@ -221,7 +221,7 @@ class Bender(Tools):
         return recheck
 
     def asnLookUp(self,asnList,line):
-        options,asndata = {"loadBalancing":True,"route":"/32","ignore":False,"ports":True,"force":False,"multi":False,"whitelist":[],"blacklist":[]},None
+        options,asndata = {"loadBalancing":True,"route":"/32","ignore":False,"ports":True,"force":False,"multi":False,"whitelist":[],"blacklist":[],"subnet":""},None
         asndata = self.asndb.lookup(line['ip_dst'])
         #Check if the lookup was successfull
         if asndata[0] is not None:
@@ -247,9 +247,18 @@ class Bender(Tools):
             if "whitelist" in base: options['whitelist'] = base['whitelist']
             if "blacklist" in base: options['blacklist'] = base['blacklist']
             options['route'] = base['route']
+            #Subnet
+            if options['route'] == "/32":
+                options['subnet'] = f"{line['ip_dst']}/32"
+            elif options['route'] == "24":
+                options['subnet'] = '.'.join(f"{line['ip_dst'].split('.')[:-1]}0/24")
+            elif options['route'] == "dyn":
+                options['subnet'] = asndata[1]
         else:
             #Filter ports
             if line['port_dst'] in self.files['config.json']['ignorePorts']: return False,[None,None],[]
+            #Subnet
+            options['subnet'] = f"{line['ip_dst']}/32"
         #Lets go bending
         return options,asndata,asnList
 
