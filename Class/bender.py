@@ -143,17 +143,21 @@ class Bender(Tools):
             resp = Bender.cmd(command)
         return {"success":True,"possible":True,"line":line,"subnet":subnet,"msg":f"Routed {line['ip_dst']} via 10.0.251.{latency[0][1]} improved latency by {round(diff,1)}ms"}
         
-    def checkNode(self,server):
+    @staticmethod
+    def checkNode(server):
         lastByte = re.findall("^([0-9.]+)\.([0-9]+)",server, re.MULTILINE | re.DOTALL)
-        logging.debug(f"Checking if 10.0.251.{lastByte[0][1]} is alive")
-        direct = self.cmd('fping -c3 10.0.251.'+lastByte[0][1])[1]
+        direct = Bender.cmd('fping -c3 10.0.251.'+lastByte[0][1])[1]
         if '100%' in direct:
             logging.debug(direct)
             logging.warning(f"10.0.251.{lastByte[0][1]} is down, removing routes")
-            routes = self.cmd('ip route show table BENDER via 10.0.251.'+lastByte[0][1])[0]
+            routes = Bender.cmd('ip route show table BENDER via 10.0.251.'+lastByte[0][1])[0]
             parsed = re.findall("^([0-9.\/]+)",routes, re.MULTILINE | re.DOTALL)
             for entry in parsed:
-                self.cmd('ip route del '+entry+' via 10.0.251.'+lastByte[0][1]+' dev vxlan1 table BENDER')
+                Bender.cmd('ip route del '+entry+' via 10.0.251.'+lastByte[0][1]+' dev vxlan1 table BENDER')
+                logging.debug(f"Removing {entry} from routing table")
+            return False
+        else:
+            return True
 
     def debug(self,ip):
         asndata = self.asndb.lookup(ip)
@@ -346,11 +350,17 @@ class Bender(Tools):
                 self.files['history.json'][result['subnet']] = {'ip':result['line']['ip_dst'],'port':result['line']['port_dst'],'expiry':int(datetime.now().timestamp()) + random.randint(7200, 21600)}
         #check nodes
         print("Checking Nodes")
-        nodeThreads = []
-        for server in self.files['nodes.json']:
-            nodeThreads.append(Thread(target=self.checkNode, args=([server])))
-        for thread in nodeThreads: thread.start()
-        for thread in nodeThreads: thread.join()
+        nodeThreads,online = [],0
+        for server in self.files['nodes.json']: nodeThreads.append(server)
+        #dispatch
+        pool = Pool(max_workers = len(nodeThreads))
+        results = pool.map(self.checkNode, nodeThreads)
+        #wait for everything
+        pool.shutdown(wait=True)
+        #process results
+        for response in results: 
+            if response: online += 1
+        logging.debug(f"Status {len(nodeThreads)}/{online} online")
         #updating json files
         saving = ['loadBalancing.json','history.json']
         for entry in saving:
