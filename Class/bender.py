@@ -111,7 +111,6 @@ class Bender(Tools):
         elif diff < 2 and options["force"] == False:
             return {"success":True,"possible":True,"line":line,"subnet":subnet,"msg":f"Direct route is better, keeping it for {line['ip_dst']} Lowest we got {float(latency[0][0])}ms vs {int(direct)}ms direct"}
         elif float(latency[0][0]) < int(direct) or options["force"] == True:
-            suffix = "/32"
             if options['whitelist']:
                 for entry in latency:
                     if int(entry[1]) in options['whitelist'] and int(entry[0]) != 65000:
@@ -133,25 +132,15 @@ class Bender(Tools):
                             latency[0][1] = files['loadBalancing.json'][group['asns']]
                         else:
                             files['loadBalancing.json'][group['asns']] = latency[0][1]
-                    suffix = group['settings']['route']
                 else:
-                    suffix = options['route']
                     if options['loadBalancing'] is False:
                         if asndata[0] in files['loadBalancing.json']:
                             latency[0][1] = files['loadBalancing.json'][asndata[0]]
                         else:
                             files['loadBalancing.json'][asndata[0]] = latency[0][1]
-            if suffix == "/32":
-                command = f"ip route add {line['ip_dst']}/32 via 10.0.251.{latency[0][1]} dev vxlan1 table BENDER"
-                resp = Bender.cmd(command)
-            else:
-                if suffix == "dyn":
-                    tmpIP = asndata[1].split("/")[0]
-                    suffix = "/"+asndata[1].split("/")[1]
-                else:
-                    tmpIP = '.'.join(line['ip_dst'].split('.')[:-1]+["0"])
-                command = f'ip route add {tmpIP}{suffix} via 10.0.251.{latency[0][1]} dev vxlan1 table BENDER'
-                resp = Bender.cmd(command)
+            #Run
+            command = f'ip route add {subnet} via 10.0.251.{latency[0][1]} dev vxlan1 table BENDER'
+            resp = Bender.cmd(command)
         return {"success":True,"possible":True,"line":line,"subnet":subnet,"msg":f"Routed {line['ip_dst']} via 10.0.251.{latency[0][1]} improved latency by {round(diff,1)}ms"}
         
     def checkNode(self,server):
