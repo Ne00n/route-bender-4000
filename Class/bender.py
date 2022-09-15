@@ -301,15 +301,23 @@ class Bender(Tools):
             #Check for existing route
             route = self.cmd(f"ip r get {data['ip']}")[0]
             if 'vxlan1' in route:
-                #Remove the route if re-check is scheduled
+                #Get Exit from IP
                 node = parsed = re.findall("via ([0-9.]+)",route, re.MULTILINE | re.DOTALL)[0]
+                #Get all Subnets from Exit
                 routes = self.cmd(f'ip route show table BENDER via {node}')[0]
+                #Parse all Subnets
                 parsed = re.findall("^([0-9.\/]+)",routes, re.MULTILINE | re.DOTALL)
                 for entry in parsed:
+                    #Find correct route/subnet
                     if IPAddress(data['ip']) in IPNetwork(entry):
+                        #Remove the subnet if re-check is scheduled
+                        print(f"Removing {entry} from routing table")
+                        logging.info(f"Removing {entry} from routing table")
+                        self.cmd(f'ip route del {entry} via {node} dev vxlan1 table BENDER')
+                        #Remove from history.json
                         print(f"Removing {entry} from history.json")
                         logging.info(f"Removing {entry} from history.json")
-                        self.cmd(f'ip route del {entry} via {node} dev vxlan1 table BENDER')
+                        del self.files['history.json'][entry]
                         break
             threads.append({"subnet":options['subnet'],"line":line,"options":options,"asndata":asndata,"files":self.files})
             print(f"Analyzing {data['ip']}")
