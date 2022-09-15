@@ -245,7 +245,6 @@ class Bender(Tools):
             if "whitelist" in base: options['whitelist'] = base['whitelist']
             if "blacklist" in base: options['blacklist'] = base['blacklist']
             options['route'] = base['route']
-            print(base)
         else:
             #Filter ports
             if line['port_dst'] in self.files['config.json']['ignorePorts']: return False,[None,None],[]
