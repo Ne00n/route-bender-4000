@@ -9,7 +9,7 @@ from Class.tools import Tools
 class Bender(Tools):
     def __init__(self,path,load=True):
         filesToLoad = {path+'/config/nodes.json':True,path+'/config/config.json':True,'/tmp/pmacct_avg.json':True,path+'/data/loadBalancing.json':False,path+'/data/history.json':False}
-        logging.basicConfig(filename=f"{path}/bender.log", filemode='a', format='%(levelname)s - %(message)s',datefmt='%H:%M:%S',level=logging.DEBUG)
+        logging.basicConfig(filename=f"{path}/bender.log", filemode='a', format='%(asctime)s %(levelname)s %(message)s',datefmt='%H:%M:%S',level=logging.DEBUG)
         self.files = {}
         if load:
             print("Loading asn")
