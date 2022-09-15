@@ -285,10 +285,9 @@ class Bender(Tools):
             #Filter ASN if loadBalancing... is disabled/enabled
             options,asndata,asnList = self.asnLookUp(asnList,line)
             if options == False: continue
-            subnet = asndata[1] if asndata[1] is not None else f"{line['ip_dst']}/32"
-            activeSubnets.append(subnet)
+            activeSubnets.append(options['subnet'])
             #Skip if already in history
-            if subnet in self.files['history.json']: continue
+            if options['subnet'] in self.files['history.json']: continue
             #Check if route for IP already exists
             route = self.cmd("ip r get "+line['ip_dst'])[0]
             if 'vxlan1' in route:
@@ -297,7 +296,7 @@ class Bender(Tools):
                 continue
             #Limit of current checks, to keep cpu load in okay levels to prevent lags
             if len(threads) <= self.files['config.json']['threads']:
-                threads.append({"subnet":subnet,"line":line,"options":options,"asndata":asndata,"files":self.files})
+                threads.append({"subnet":options['subnet'],"line":line,"options":options,"asndata":asndata,"files":self.files})
                 print(f"Analyzing {line['ip_dst']}")
                 logging.info(f"Analyzing {line['ip_dst']}")
         history = self.history(activeSubnets)
