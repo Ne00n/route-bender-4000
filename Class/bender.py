@@ -342,7 +342,7 @@ class Bender(Tools):
                 #wait 2-6 hours before re-check
                 self.files['history.json'][result['subnet']] = {'ip':result['line']['ip_dst'],'port':result['line']['port_dst'],'expiry':int(datetime.now().timestamp()) + random.randint(7200, 21600)}
         #check nodes
-        logging.info("Checking Nodes")
+        logging.debug("Checking Nodes")
         nodeThreads,online = [],0
         for server in self.files['nodes.json']: nodeThreads.append(server)
         #dispatch
