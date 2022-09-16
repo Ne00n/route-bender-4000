@@ -1,22 +1,30 @@
 from concurrent.futures import ProcessPoolExecutor as Pool
 import random, logging, pyasn, time, json, re, os
 from netaddr import IPNetwork, IPAddress
-from multiprocessing import Queue
 from datetime import datetime
 from threading import Thread
 from Class.tools import Tools
 
 class Bender(Tools):
-    def __init__(self,path,load=True):
+    def __init__(self,path,load=True,level="info"):
+        #logging
+        levels = {
+            'critical': logging.CRITICAL,
+            'error': logging.ERROR,
+            'warning': logging.WARNING,
+            'info': logging.INFO,
+            'debug': logging.DEBUG
+        }
+        logging.basicConfig(filename=f"{path}/bender.log", filemode='a', format='%(asctime)s %(levelname)s %(message)s',datefmt='%H:%M:%S',level=levels[level])
+        #Files
         filesToLoad = {path+'/config/nodes.json':True,path+'/config/config.json':True,'/tmp/pmacct_avg.json':True,path+'/data/loadBalancing.json':False,path+'/data/history.json':False}
-        logging.basicConfig(filename=f"{path}/bender.log", filemode='a', format='%(levelname)s - %(message)s',datefmt='%H:%M:%S',level=logging.DEBUG)
         self.files = {}
         if load:
-            print("Loading asn")
+            logging.debug("Loading asn")
             self.asndb = pyasn.pyasn(path+'/asn.dat')
             self.path = path
             for file,required in filesToLoad.items():
-                print(f"Loading {file}")
+                logging.debug(f"Loading {file}")
                 parts = file.split("/")
                 try:
                     with open(file) as handle:
@@ -31,7 +39,7 @@ class Bender(Tools):
                         exit(f"Failed to load {file}")
 
     def prepare(self):
-        print("Prepare")
+        logging.debug("Prepare")
         base = 400
         tables = re.findall("^([0-9]+)",self.cmd('cat /etc/iproute2/rt_tables')[0], re.MULTILINE | re.DOTALL)
         inetList = re.findall("(10[0-9.]+?252\.[0-9]+)",self.cmd('ip addr show lo')[0], re.MULTILINE)
@@ -60,31 +68,46 @@ class Bender(Tools):
         for route in routes:
             print(route)
 
+    def optimize(self,target,port):
+        line = {"ip_dst":target,"port_dst":port}
+        options,asndata,asnList = self.asnLookUp([],line)
+        if options == False: exit("Options empty")
+        print(f"Subnet {options['subnet']}")
+        #Skip if already in history
+        if options['subnet'] in self.files['history.json']: 
+            print(self.files['history.json'][options['subnet']])
+            exit("Subnet already in history.json")
+        #Check if route for IP already exists
+        route = self.cmd("ip r get "+line['ip_dst'])[0]
+        if 'vxlan1' in route: exit(f"{line['ip_dst']} route already exists")
+        payload = {"subnet":options['subnet'],"line":line,"options":options,"asndata":asndata,"files":self.files}
+        #Optimize
+        result = self.magic(payload)
+        print(result['msg'])
+
     @staticmethod
     def magic(payload):
         line,options,asndata,files,subnet = payload['line'],payload['options'],payload['asndata'],payload['files'],payload['subnet']
-        print(f"Running {line['ip_dst']}")
+        logging.debug(f"Running {line['ip_dst']}")
         lastIP,direct = Bender.mtrIP(line['ip_dst'],options,asndata)
         if lastIP is False: return {"success":True,"possible":True,"line":line,"subnet":subnet,"msg":f"Could not optimize {line['ip_dst']}, no pingable IP found"}
-        latency,queue,outQueue,count = [],Queue(),Queue(),0
-        for server in files['nodes.json']:
-            queue.put({"server":server,"ip":lastIP})
-        threads = [Thread(target=Bender.fpingWorker, args=(queue,outQueue,)) for _ in range(int(len(files['nodes.json']) / 3))]
-        for thread in threads: thread.start()
-        while len(files['nodes.json']) != count:
-            while not outQueue.empty():
-                data = outQueue.get()
-                if data['parsed']:
-                    avrg = Bender.getAvrg(data['result'])
-                    latency.append([avrg,data['lastByte'][0][1]])
-                    logging.debug(f"Got {avrg}ms to {data['ip']} from {data['server']}")
-                else:
-                    print(f"{lastIP} is not reachable via {data['server']}")
-                    logging.warning(f"{lastIP} is not reachable via {data['server']}")
-                count += 1
-            time.sleep(0.05)
-        for thread in threads:
-            thread.join()
+        #fping
+        threads,latency = [],[]
+        for server in files['nodes.json']: threads.append({"server":server,"ip":lastIP})
+        #dispatch
+        pool = Pool(max_workers = int(len(files['nodes.json']) / 3))
+        results = pool.map(Bender.fpingWorker, threads)
+        #wait for everything
+        pool.shutdown(wait=True)
+        #process results
+        for data in results: 
+            if data['parsed']:
+                avrg = Bender.getAvrg(data['result'])
+                latency.append([avrg,data['lastByte'][0][1]])
+                logging.debug(f"Got {avrg}ms to {data['ip']} from {data['server']}")
+            else:
+                logging.warning(f"{lastIP} is not reachable via {data['server']}")
+        #if we got no result abort       
         if not latency: return
         latency.sort()
         direct = Bender.getAvrg(direct[0])
@@ -94,7 +117,6 @@ class Bender(Tools):
         elif diff < 2 and options["force"] == False:
             return {"success":True,"possible":True,"line":line,"subnet":subnet,"msg":f"Direct route is better, keeping it for {line['ip_dst']} Lowest we got {float(latency[0][0])}ms vs {int(direct)}ms direct"}
         elif float(latency[0][0]) < int(direct) or options["force"] == True:
-            suffix = "/32"
             if options['whitelist']:
                 for entry in latency:
                     if int(entry[1]) in options['whitelist'] and int(entry[0]) != 65000:
@@ -116,38 +138,32 @@ class Bender(Tools):
                             latency[0][1] = files['loadBalancing.json'][group['asns']]
                         else:
                             files['loadBalancing.json'][group['asns']] = latency[0][1]
-                    suffix = group['settings']['route']
                 else:
-                    suffix = options['route']
                     if options['loadBalancing'] is False:
                         if asndata[0] in files['loadBalancing.json']:
                             latency[0][1] = files['loadBalancing.json'][asndata[0]]
                         else:
                             files['loadBalancing.json'][asndata[0]] = latency[0][1]
-            if suffix == "/32":
-                command = f"ip route add {line['ip_dst']}/32 via 10.0.251.{latency[0][1]} dev vxlan1 table BENDER"
-                resp = Bender.cmd(command)
-            else:
-                if suffix == "dyn":
-                    tmpIP = asndata[1].split("/")[0]
-                    suffix = "/"+asndata[1].split("/")[1]
-                else:
-                    tmpIP = '.'.join(line['ip_dst'].split('.')[:-1]+["0"])
-                command = f'ip route add {tmpIP}{suffix} via 10.0.251.{latency[0][1]} dev vxlan1 table BENDER'
-                resp = Bender.cmd(command)
+            #Run
+            command = f'ip route add {subnet} via 10.0.251.{latency[0][1]} dev vxlan1 table BENDER'
+            resp = Bender.cmd(command)
         return {"success":True,"possible":True,"line":line,"subnet":subnet,"msg":f"Routed {line['ip_dst']} via 10.0.251.{latency[0][1]} improved latency by {round(diff,1)}ms"}
         
-    def checkNode(self,server):
+    @staticmethod
+    def checkNode(server):
         lastByte = re.findall("^([0-9.]+)\.([0-9]+)",server, re.MULTILINE | re.DOTALL)
-        logging.debug(f"Checking if 10.0.251.{lastByte[0][1]} is alive")
-        direct = self.cmd('fping -c3 10.0.251.'+lastByte[0][1])[1]
+        direct = Bender.cmd('fping -c3 10.0.251.'+lastByte[0][1])[1]
         if '100%' in direct:
             logging.debug(direct)
             logging.warning(f"10.0.251.{lastByte[0][1]} is down, removing routes")
-            routes = self.cmd('ip route show table BENDER via 10.0.251.'+lastByte[0][1])[0]
+            routes = Bender.cmd('ip route show table BENDER via 10.0.251.'+lastByte[0][1])[0]
             parsed = re.findall("^([0-9.\/]+)",routes, re.MULTILINE | re.DOTALL)
             for entry in parsed:
-                self.cmd('ip route del '+entry+' via 10.0.251.'+lastByte[0][1]+' dev vxlan1 table BENDER')
+                Bender.cmd('ip route del '+entry+' via 10.0.251.'+lastByte[0][1]+' dev vxlan1 table BENDER')
+                logging.debug(f"Removing {entry} from routing table")
+            return False
+        else:
+            return True
 
     def debug(self,ip):
         asndata = self.asndb.lookup(ip)
@@ -160,32 +176,29 @@ class Bender(Tools):
         mtrIP,direct = self.mtrIP(ip,options,asndata)
         if mtrIP is False: exit()
         ip = mtrIP
-        count,queue,outQueue = 0,Queue(),Queue()
-        queue.put({"server":"direct","ip":ip})
-        for server in self.files['nodes.json']:
-            queue.put({"server":server,"ip":ip})
-        threads = [Thread(target=self.fpingWorker, args=(queue,outQueue,)) for _ in range(int(len(self.files['nodes.json']) / 3))]
-        for thread in threads: thread.start()
-        results = {}
-        while len(self.files['nodes.json'])+1 != count:
-            while not outQueue.empty():
-                data = outQueue.get()
-                if data['parsed']:
-                    results[data['server']] = self.getAvrg(data['result'])
-                else:
-                    print(data['ip']+" is not reachable via "+data['server'])
-                count += 1
-            time.sleep(0.05)
-        for thread in threads:
-            thread.join()
-        results = {k: results[k] for k in sorted(results, key=results.get)}
+        #fping
+        threads,fping = [],{}
+        threads.append({"server":"direct","ip":ip})
+        for server in self.files['nodes.json']: threads.append({"server":server,"ip":ip})
+        #dispatch
+        pool = Pool(max_workers = int(len(self.files['nodes.json']) / 3))
+        results = pool.map(self.fpingWorker, threads)
+        #wait for everything
+        pool.shutdown(wait=True)
+        #process results
+        for data in results: 
+            if data['parsed']:
+                fping[data['server']] = self.getAvrg(data['result'])
+            else:
+                print(data['ip']+" is not reachable via "+data['server'])
+        fping = {k: fping[k] for k in sorted(fping, key=fping.get)}
         print("--- Direct ---")
-        directAvrg = results["direct"]
+        directAvrg = fping["direct"]
         print("Got " + str(directAvrg) +"ms direct")
-        del results["direct"]
+        del fping["direct"]
         print("--- Results ---")
         save = 0
-        for server, latency in results.items():
+        for server, latency in fping.items():
             print("Got " + str(latency)+"ms" + " from " + server)
             if latency < directAvrg +2:
                 if save == 0: save = directAvrg - latency
@@ -204,7 +217,7 @@ class Bender(Tools):
         return recheck
 
     def asnLookUp(self,asnList,line):
-        options,asndata = {"loadBalancing":True,"route":"/32","ignore":False,"ports":True,"force":False,"multi":False,"whitelist":[],"blacklist":[]},None
+        options,asndata = {"loadBalancing":True,"route":"/32","ignore":False,"ports":True,"force":False,"multi":False,"whitelist":[],"blacklist":[],"subnet":""},None
         asndata = self.asndb.lookup(line['ip_dst'])
         #Check if the lookup was successfull
         if asndata[0] is not None:
@@ -230,18 +243,30 @@ class Bender(Tools):
             if "whitelist" in base: options['whitelist'] = base['whitelist']
             if "blacklist" in base: options['blacklist'] = base['blacklist']
             options['route'] = base['route']
+            #Subnet
+            if options['route'] == "/32":
+                options['subnet'] = f"{line['ip_dst']}/32"
+            elif options['route'] == "/24":
+                tmpIP = '.'.join(line['ip_dst'].split('.')[:-1])
+                options['subnet'] = f"{tmpIP}.0/24"
+            elif options['route'] == "dyn":
+                options['subnet'] = asndata[1]
         else:
             #Filter ports
             if line['port_dst'] in self.files['config.json']['ignorePorts']: return False,[None,None],[]
+            #Subnet
+            options['subnet'] = f"{line['ip_dst']}/32"
         #Lets go bending
         return options,asndata,asnList
 
     def run(self):
         ips,asnList,activeSubnets,threads = [],[],[],[]
-        print("Launching")
+        running = self.cmd('ps ax | grep "bender.py"')[0]
+        if len(running.split("\n")) > 4:
+            logging.warning("bender.py already running, exiting")
+            exit("bender.py already running, exiting")
         logging.debug("Launching")
         self.prepare()
-        print("Checking pmacct")
         logging.debug("Checking pmacct")
         for row in self.files['pmacct_avg.json'].split('\n'):
             if row.strip() == "": continue
@@ -258,23 +283,19 @@ class Bender(Tools):
             #Filter ASN if loadBalancing... is disabled/enabled
             options,asndata,asnList = self.asnLookUp(asnList,line)
             if options == False: continue
-            subnet = asndata[1] if asndata[1] is not None else f"{line['ip_dst']}/32"
-            activeSubnets.append(subnet)
+            activeSubnets.append(options['subnet'])
             #Skip if already in history
-            if subnet in self.files['history.json']: continue
+            if options['subnet'] in self.files['history.json']: continue
             #Check if route for IP already exists
             route = self.cmd("ip r get "+line['ip_dst'])[0]
             if 'vxlan1' in route:
-                print(line['ip_dst'],"route already exists")
                 logging.info(f"{line['ip_dst']} route already exists")
                 continue
             #Limit of current checks, to keep cpu load in okay levels to prevent lags
             if len(threads) <= self.files['config.json']['threads']:
-                threads.append({"subnet":subnet,"line":line,"options":options,"asndata":asndata,"files":self.files})
-                print(f"Analyzing {line['ip_dst']}")
+                threads.append({"subnet":options['subnet'],"line":line,"options":options,"asndata":asndata,"files":self.files})
                 logging.info(f"Analyzing {line['ip_dst']}")
         history = self.history(activeSubnets)
-        print("Checking history")
         logging.debug("Checking history")
         for data in history:
             #Check if we already hit the current checks limit
@@ -286,18 +307,24 @@ class Bender(Tools):
             #Check for existing route
             route = self.cmd(f"ip r get {data['ip']}")[0]
             if 'vxlan1' in route:
-                #Remove the route if re-check is scheduled
+                #Get Exit from IP
                 node = parsed = re.findall("via ([0-9.]+)",route, re.MULTILINE | re.DOTALL)[0]
+                #Get all Subnets from Exit
                 routes = self.cmd(f'ip route show table BENDER via {node}')[0]
+                #Parse all Subnets
                 parsed = re.findall("^([0-9.\/]+)",routes, re.MULTILINE | re.DOTALL)
                 for entry in parsed:
+                    #Find correct route/subnet
                     if IPAddress(data['ip']) in IPNetwork(entry):
-                        print(f"Removing {entry} from history.json")
-                        logging.info(f"Removing {entry} from history.json")
+                        #Remove the subnet if re-check is scheduled
+                        logging.info(f"Removing {entry} from routing table")
                         self.cmd(f'ip route del {entry} via {node} dev vxlan1 table BENDER')
+                        #Remove from history.json
+                        if not "/" in entry: entry = f"{entry}/32"
+                        logging.info(f"Removing {entry} from history.json")
+                        del self.files['history.json'][entry]
                         break
-            threads.append({"subnet":data['subnet'],"line":line,"options":options,"asndata":asndata,"files":self.files})
-            print(f"Analyzing {data['ip']}")
+            threads.append({"subnet":options['subnet'],"line":line,"options":options,"asndata":asndata,"files":self.files})
             logging.info(f"Analyzing {data['ip']}")
         #dispatch
         pool = Pool(max_workers = self.files['config.json']['threads'])
@@ -305,9 +332,7 @@ class Bender(Tools):
         #wait for everything
         pool.shutdown(wait=True)
         #process results
-        print("Getting Results")
         for result in results:
-            print(result['msg'])
             logging.info(result['msg'])
             if result['subnet'] not in self.files['history.json']: self.files['history.json'][result['subnet']] = {}
             if result['possible'] == False:
@@ -317,16 +342,22 @@ class Bender(Tools):
                 #wait 2-6 hours before re-check
                 self.files['history.json'][result['subnet']] = {'ip':result['line']['ip_dst'],'port':result['line']['port_dst'],'expiry':int(datetime.now().timestamp()) + random.randint(7200, 21600)}
         #check nodes
-        print("Checking Nodes")
-        nodeThreads = []
-        for server in self.files['nodes.json']:
-            nodeThreads.append(Thread(target=self.checkNode, args=([server])))
-        for thread in nodeThreads: thread.start()
-        for thread in nodeThreads: thread.join()
+        logging.debug("Checking Nodes")
+        nodeThreads,online = [],0
+        for server in self.files['nodes.json']: nodeThreads.append(server)
+        #dispatch
+        pool = Pool(max_workers = len(nodeThreads))
+        results = pool.map(self.checkNode, nodeThreads)
+        #wait for everything
+        pool.shutdown(wait=True)
+        #process results
+        for response in results: 
+            if response: online += 1
+        logging.debug(f"Status {len(nodeThreads)}/{online} online")
         #updating json files
         saving = ['loadBalancing.json','history.json']
         for entry in saving:
-            print(f"Saving {entry}")
+            logging.debug(f"Saving {entry}")
             with open(self.path+f'/data/{entry}', 'w') as f:
                 json.dump(self.files[entry], f)
         logging.debug("Done")
