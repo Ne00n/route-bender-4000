@@ -113,7 +113,7 @@ class Bender(Tools):
         line,options,asndata,files,subnet = payload['line'],payload['options'],payload['asndata'],payload['files'],payload['subnet']
         logging.debug(f"Running {line['ip_dst']}")
         lastIP,direct = Bender.mtrIP(line['ip_dst'],options,asndata)
-        if lastIP is False: return {"success":True,"possible":True,"line":line,"subnet":subnet,"msg":f"Could not optimize {line['ip_dst']}, no pingable IP found"}
+        if lastIP is False: return {"success":False,"possible":False,"line":line,"subnet":subnet,"msg":f"Could not optimize {line['ip_dst']}, no pingable IP found"}
         #fping
         threads,latency = [],[]
         for server in files['nodes.json']: threads.append({"server":server,"ip":lastIP})
@@ -136,9 +136,9 @@ class Bender(Tools):
         direct = Bender.getAvrg(direct[0])
         diff = direct - float(latency[0][0])
         if diff < 2 and diff > 0 and options["force"] == False:
-            return {"success":True,"possible":True,"line":line,"subnet":subnet,"msg":f"Difference less than 2ms, skipping {float(direct)} vs {float(latency[0][0])} for {line['ip_dst']}"}
+            return {"success":False,"possible":True,"line":line,"subnet":subnet,"msg":f"Difference less than 2ms, skipping {float(direct)} vs {float(latency[0][0])} for {line['ip_dst']}"}
         elif diff < 2 and options["force"] == False:
-            return {"success":True,"possible":True,"line":line,"subnet":subnet,"msg":f"Direct route is better, keeping it for {line['ip_dst']} Lowest we got {float(latency[0][0])}ms vs {int(direct)}ms direct"}
+            return {"success":False,"possible":True,"line":line,"subnet":subnet,"msg":f"Direct route is better, keeping it for {line['ip_dst']} Lowest we got {float(latency[0][0])}ms vs {int(direct)}ms direct"}
         elif float(latency[0][0]) < int(direct) or options["force"] == True:
             if options['whitelist']:
                 for entry in latency:
@@ -358,8 +358,11 @@ class Bender(Tools):
         for result in results:
             logging.info(result['msg'])
             if result['subnet'] not in self.files['history.json']: self.files['history.json'][result['subnet']] = {}
-            if result['possible'] == False:
-                #wait 8-12 hours before re-check, since we could not optimize
+            if result['possible'] == True and result['success'] == False:
+                #wait 4-8 hours before re-check, latency difference wasn't high enough or direct was better
+                self.files['history.json'][result['subnet']] = {'ip':result['line']['ip_dst'],'port':result['line']['port_dst'],'expiry':int(datetime.now().timestamp()) + random.randint(14400, 28800)}
+            elif result['possible'] == False:
+                #wait 8-12 hours before re-check, since we could not optimize / no pingable ip
                 self.files['history.json'][result['subnet']] = {'ip':result['line']['ip_dst'],'port':result['line']['port_dst'],'expiry':int(datetime.now().timestamp()) + random.randint(28800, 43200)}
             else:
                 #wait 2-6 hours before re-check
