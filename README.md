@@ -46,6 +46,7 @@ apt-get install -y pmacct python3 python3-pip && pip3 install pyasn
 python3 bender.py
 python3 bender.py debug 1.1.1.1
 python3 bender.py optimize 1.1.1.1 53
+python3 bender.py level debug / info (default) / warning
 python3 bender.py show
 python3 bender.py clear
 ```
@@ -68,18 +69,21 @@ the first IP that does a connection to that ASN will determine the server for th
 
 If the latency improvement is below 2ms or none, you can force bending by setting force to True<br />
 
-You can define the size of the subnet that will be used to route /24 or /32 (default, <br />
-however I suggest just use dyn instead, which will use the actual size.<br />
+You can define the size of the subnet that will be used to route dyn, /24 or /32 (default, <br />
+dyn uses the actual subnet size from the routing table, could result in issues when used for example with Microsoft or Google.</br >
+Since they route the entire subnet, e.g /10 internally.
 
 You can enable multi if the primary IP is not pingable it tries to figure out the gateway.<br />
 This works for fine for some Networks like AWS but can cause problems with others like Google.<br />
+
+Blacklist/Whitelist can be used to ignore/allow certain nodes for a specific ASN
 
 **Config.json examples**
 ```
 #Fastly CDN (Reddit...)
 "54113" :{"ignore":false,"ports":false,"loadBalancing":true,"force":true,"route":"dyn"}
 #Google (Youtube...)
-"15169":{"ignore":false,"ports":true,"loadBalancing":true,"route":"dyn"}
+"15169":{"ignore":false,"ports":true,"loadBalancing":true,"route":"/24"}
 #Vivox (Voice communications, Valorant, Siege, Overwatch)
 "393218":{"ignore":true,"ports":true,"loadBalancing":true,"route":"/24"}
 ```
