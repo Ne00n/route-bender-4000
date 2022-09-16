@@ -11,7 +11,6 @@ class Bender(Tools):
         levels = {
             'critical': logging.CRITICAL,
             'error': logging.ERROR,
-            'warn': logging.WARNING,
             'warning': logging.WARNING,
             'info': logging.INFO,
             'debug': logging.DEBUG
