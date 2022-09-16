@@ -70,7 +70,7 @@ the first IP that does a connection to that ASN will determine the server for th
 If the latency improvement is below 2ms or none, you can force bending by setting force to True<br />
 
 You can define the size of the subnet that will be used to route dyn, /24 or /32 (default, <br />
-dyn uses the actual subnet size from the routing table, could result in issues when used for example with Microsoft or Google.</br >
+dyn uses the actual subnet size from the routing table, this could result in issues when used for example with Microsoft or Google.</br >
 Since they route the entire subnet, e.g /10 internally.
 
 You can enable multi if the primary IP is not pingable it tries to figure out the gateway.<br />
