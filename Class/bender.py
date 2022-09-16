@@ -170,7 +170,7 @@ class Bender(Tools):
             #Run
             command = f'ip route add {subnet} via 10.0.251.{latency[0][1]} dev vxlan1 table BENDER'
             resp = Bender.cmd(command)
-        return {"success":True,"possible":True,"line":line,"subnet":subnet,"msg":f"Routed {line['ip_dst']} via 10.0.251.{latency[0][1]} improved latency by {round(diff,1)}ms"}
+        return {"success":True,"possible":True,"line":line,"subnet":subnet,"msg":f"Routed {line['ip_dst']} ({subnet}) via 10.0.251.{latency[0][1]} improved latency by {round(diff,1)}ms"}
         
     @staticmethod
     def checkNode(server):
@@ -240,7 +240,7 @@ class Bender(Tools):
         return recheck
 
     def asnLookUp(self,asnList,line):
-        options,asndata = {"loadBalancing":True,"route":"/32","ignore":False,"ports":True,"force":False,"multi":False,"whitelist":[],"blacklist":[],"subnet":""},None
+        options,asndata = {"loadBalancing":True,"route":"/24","ignore":False,"ports":True,"force":False,"multi":False,"whitelist":[],"blacklist":[],"subnet":""},None
         asndata = self.asndb.lookup(line['ip_dst'])
         #Check if the lookup was successfull
         if asndata[0] is not None:
