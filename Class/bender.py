@@ -1,7 +1,6 @@
 from concurrent.futures import ProcessPoolExecutor as Pool
 import random, logging, pyasn, time, json, re, os
 from netaddr import IPNetwork, IPAddress
-from multiprocessing import Queue
 from datetime import datetime
 from threading import Thread
 from Class.tools import Tools
@@ -93,25 +92,24 @@ class Bender(Tools):
         print(f"Running {line['ip_dst']}")
         lastIP,direct = Bender.mtrIP(line['ip_dst'],options,asndata)
         if lastIP is False: return {"success":True,"possible":True,"line":line,"subnet":subnet,"msg":f"Could not optimize {line['ip_dst']}, no pingable IP found"}
-        latency,queue,outQueue,count = [],Queue(),Queue(),0
-        for server in files['nodes.json']:
-            queue.put({"server":server,"ip":lastIP})
-        threads = [Thread(target=Bender.fpingWorker, args=(queue,outQueue,)) for _ in range(int(len(files['nodes.json']) / 3))]
-        for thread in threads: thread.start()
-        while len(files['nodes.json']) != count:
-            while not outQueue.empty():
-                data = outQueue.get()
-                if data['parsed']:
-                    avrg = Bender.getAvrg(data['result'])
-                    latency.append([avrg,data['lastByte'][0][1]])
-                    logging.debug(f"Got {avrg}ms to {data['ip']} from {data['server']}")
-                else:
-                    print(f"{lastIP} is not reachable via {data['server']}")
-                    logging.warning(f"{lastIP} is not reachable via {data['server']}")
-                count += 1
-            time.sleep(0.05)
-        for thread in threads:
-            thread.join()
+        #fping
+        threads,latency = [],[]
+        for server in files['nodes.json']: threads.append({"server":server,"ip":lastIP})
+        #dispatch
+        pool = Pool(max_workers = int(len(files['nodes.json']) / 3))
+        results = pool.map(Bender.fpingWorker, threads)
+        #wait for everything
+        pool.shutdown(wait=True)
+        #process results
+        for data in results: 
+            if data['parsed']:
+                avrg = Bender.getAvrg(data['result'])
+                latency.append([avrg,data['lastByte'][0][1]])
+                logging.debug(f"Got {avrg}ms to {data['ip']} from {data['server']}")
+            else:
+                print(f"{lastIP} is not reachable via {data['server']}")
+                logging.warning(f"{lastIP} is not reachable via {data['server']}")
+        #if we got no result abort       
         if not latency: return
         latency.sort()
         direct = Bender.getAvrg(direct[0])
@@ -180,32 +178,29 @@ class Bender(Tools):
         mtrIP,direct = self.mtrIP(ip,options,asndata)
         if mtrIP is False: exit()
         ip = mtrIP
-        count,queue,outQueue = 0,Queue(),Queue()
-        queue.put({"server":"direct","ip":ip})
-        for server in self.files['nodes.json']:
-            queue.put({"server":server,"ip":ip})
-        threads = [Thread(target=self.fpingWorker, args=(queue,outQueue,)) for _ in range(int(len(self.files['nodes.json']) / 3))]
-        for thread in threads: thread.start()
-        results = {}
-        while len(self.files['nodes.json'])+1 != count:
-            while not outQueue.empty():
-                data = outQueue.get()
-                if data['parsed']:
-                    results[data['server']] = self.getAvrg(data['result'])
-                else:
-                    print(data['ip']+" is not reachable via "+data['server'])
-                count += 1
-            time.sleep(0.05)
-        for thread in threads:
-            thread.join()
-        results = {k: results[k] for k in sorted(results, key=results.get)}
+        #fping
+        threads,fping = [],{}
+        threads.append({"server":"direct","ip":ip})
+        for server in self.files['nodes.json']: threads.append({"server":server,"ip":ip})
+        #dispatch
+        pool = Pool(max_workers = int(len(self.files['nodes.json']) / 3))
+        results = pool.map(self.fpingWorker, threads)
+        #wait for everything
+        pool.shutdown(wait=True)
+        #process results
+        for data in results: 
+            if data['parsed']:
+                fping[data['server']] = self.getAvrg(data['result'])
+            else:
+                print(data['ip']+" is not reachable via "+data['server'])
+        fping = {k: fping[k] for k in sorted(fping, key=fping.get)}
         print("--- Direct ---")
-        directAvrg = results["direct"]
+        directAvrg = fping["direct"]
         print("Got " + str(directAvrg) +"ms direct")
-        del results["direct"]
+        del fping["direct"]
         print("--- Results ---")
         save = 0
-        for server, latency in results.items():
+        for server, latency in fping.items():
             print("Got " + str(latency)+"ms" + " from " + server)
             if latency < directAvrg +2:
                 if save == 0: save = directAvrg - latency

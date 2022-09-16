@@ -74,14 +74,9 @@ class Tools:
         return parsed,result,lastByte
 
     @staticmethod
-    def fpingWorker(queue,outQueue):
-        while queue.qsize() > 0:
-            try:
-                data = queue.get_nowait()
-                parsed,result,lastByte = Tools.fpingSource(data['server'],data['ip'])
-                outQueue.put({"parsed":parsed,"result":result,"lastByte":lastByte,"ip":data['ip'],"server":data['server']})
-            except Exception as e:
-                return True
+    def fpingWorker(data):
+        parsed,result,lastByte = Tools.fpingSource(data['server'],data['ip'])
+        return {"parsed":parsed,"result":result,"lastByte":lastByte,"ip":data['ip'],"server":data['server']}
 
     @staticmethod
     def getAvrg(fping):
