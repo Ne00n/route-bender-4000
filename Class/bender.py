@@ -7,9 +7,19 @@ from threading import Thread
 from Class.tools import Tools
 
 class Bender(Tools):
-    def __init__(self,path,load=True):
+    def __init__(self,path,load=True,level="info"):
+        #logging
+        levels = {
+            'critical': logging.CRITICAL,
+            'error': logging.ERROR,
+            'warn': logging.WARNING,
+            'warning': logging.WARNING,
+            'info': logging.INFO,
+            'debug': logging.DEBUG
+        }
+        logging.basicConfig(filename=f"{path}/bender.log", filemode='a', format='%(asctime)s %(levelname)s %(message)s',datefmt='%H:%M:%S',level=levels[level])
+        #Files
         filesToLoad = {path+'/config/nodes.json':True,path+'/config/config.json':True,'/tmp/pmacct_avg.json':True,path+'/data/loadBalancing.json':False,path+'/data/history.json':False}
-        logging.basicConfig(filename=f"{path}/bender.log", filemode='a', format='%(asctime)s %(levelname)s %(message)s',datefmt='%H:%M:%S',level=logging.DEBUG)
         self.files = {}
         if load:
             print("Loading asn")

@@ -6,6 +6,9 @@ print("Route Bender 4000")
 if len(sys.argv) == 1:
     bender = Bender(path)
     bender.run()
+elif sys.argv[1] == "level":
+    bender = Bender(path,True,sys.argv[2])
+    bender.run()
 elif sys.argv[1] == "clear":
     bender = Bender(path,False)
     bender.clear()
