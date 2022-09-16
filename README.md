@@ -52,6 +52,14 @@ python3 bender.py clear
 ```
 pmacct will execute bender.py every 60s, but you can still do it manually
 
+**Reset everything**
+```
+systemctl stop pmacctd
+rm data/history.json && rm data/loadBalancing.json
+python3 bender.py clear
+systemctl start pmacctd
+```
+
 **Update asn data**
 ```
 pyasn_util_download.py --latest && pyasn_util_convert.py --single rib.202* asn.dat
