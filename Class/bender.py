@@ -68,6 +68,29 @@ class Bender(Tools):
         for route in routes:
             print(route)
 
+    def stats(self):
+        print("Stats")
+        routes = self.cmd('ip route show table BENDER')[0]
+        routes = routes.splitlines()
+        data = {}
+        for route in routes:
+            parsed = re.findall("^([0-9.\/]+)",route, re.MULTILINE | re.DOTALL)
+            line = {"ip_dst":parsed[0].split("/")[0],"port_dst":0}
+            options,asndata,asnList = self.asnLookUp([],line)
+            if asndata[0] is not None:
+                if not asndata[0] in data: data[asndata[0]] = {"count":0,"options":{}}
+                data[asndata[0]]['count'] += 1
+                data[asndata[0]]['options'] = options
+            else:
+                data['unknown']['count'] += 1
+        data = sorted(data.items(), key=lambda item: int(item[1]['count']), reverse=True)
+        result = []
+        result.append("ASN\tEntries\tPercentage\tRoute")
+        result.append("-------\t-------\t-------\t-------")
+        for asn in data:
+            result.append(f"{asn[0]}\t{asn[1]['count']}\t{round(100 / len(routes) * asn[1]['count'],1)}%\t{asn[1]['options']['route']}")
+        print(Bender.formatTable(result))
+
     def optimize(self,target,port):
         line = {"ip_dst":target,"port_dst":port}
         options,asndata,asnList = self.asnLookUp([],line)
