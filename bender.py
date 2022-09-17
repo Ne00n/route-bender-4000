@@ -15,6 +15,9 @@ elif sys.argv[1] == "clear":
 elif sys.argv[1] == "show":
     bender = Bender(path,False)
     bender.show()
+elif sys.argv[1] == "stats":
+    bender = Bender(path)
+    bender.stats()
 elif sys.argv[1] == "optimize":
     bender = Bender(path)
     bender.optimize(sys.argv[2],sys.argv[3])
@@ -22,4 +25,4 @@ elif sys.argv[1] == "debug":
     bender = Bender(path)
     bender.debug(sys.argv[2])
 else:
-    print("show, clear, debug")
+    print("show, clear, debug, optimize, level, stats")

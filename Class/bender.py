@@ -68,6 +68,29 @@ class Bender(Tools):
         for route in routes:
             print(route)
 
+    def stats(self):
+        print("Stats")
+        routes = self.cmd('ip route show table BENDER')[0]
+        routes = routes.splitlines()
+        data = {}
+        for route in routes:
+            parsed = re.findall("^([0-9.\/]+)",route, re.MULTILINE | re.DOTALL)
+            line = {"ip_dst":parsed[0].split("/")[0],"port_dst":0}
+            options,asndata,asnList = self.asnLookUp([],line)
+            if asndata[0] is not None:
+                if not asndata[0] in data: data[asndata[0]] = {"count":0,"options":{}}
+                data[asndata[0]]['count'] += 1
+                data[asndata[0]]['options'] = options
+            else:
+                data['unknown']['count'] += 1
+        data = sorted(data.items(), key=lambda item: int(item[1]['count']), reverse=True)
+        result = []
+        result.append("ASN\tEntries\tPercentage\tRoute")
+        result.append("-------\t-------\t-------\t-------")
+        for asn in data:
+            result.append(f"{asn[0]}\t{asn[1]['count']}\t{round(100 / len(routes) * asn[1]['count'],1)}%\t{asn[1]['options']['route']}")
+        print(Bender.formatTable(result))
+
     def optimize(self,target,port):
         line = {"ip_dst":target,"port_dst":port}
         options,asndata,asnList = self.asnLookUp([],line)
@@ -90,7 +113,7 @@ class Bender(Tools):
         line,options,asndata,files,subnet = payload['line'],payload['options'],payload['asndata'],payload['files'],payload['subnet']
         logging.debug(f"Running {line['ip_dst']}")
         lastIP,direct = Bender.mtrIP(line['ip_dst'],options,asndata)
-        if lastIP is False: return {"success":True,"possible":True,"line":line,"subnet":subnet,"msg":f"Could not optimize {line['ip_dst']}, no pingable IP found"}
+        if lastIP is False: return {"success":False,"possible":False,"line":line,"subnet":subnet,"msg":f"Could not optimize {line['ip_dst']}, no pingable IP found"}
         #fping
         threads,latency = [],[]
         for server in files['nodes.json']: threads.append({"server":server,"ip":lastIP})
@@ -113,9 +136,9 @@ class Bender(Tools):
         direct = Bender.getAvrg(direct[0])
         diff = direct - float(latency[0][0])
         if diff < 2 and diff > 0 and options["force"] == False:
-            return {"success":True,"possible":True,"line":line,"subnet":subnet,"msg":f"Difference less than 2ms, skipping {float(direct)} vs {float(latency[0][0])} for {line['ip_dst']}"}
+            return {"success":False,"possible":True,"line":line,"subnet":subnet,"msg":f"Difference less than 2ms, skipping {float(direct)} vs {float(latency[0][0])} for {line['ip_dst']}"}
         elif diff < 2 and options["force"] == False:
-            return {"success":True,"possible":True,"line":line,"subnet":subnet,"msg":f"Direct route is better, keeping it for {line['ip_dst']} Lowest we got {float(latency[0][0])}ms vs {int(direct)}ms direct"}
+            return {"success":False,"possible":True,"line":line,"subnet":subnet,"msg":f"Direct route is better, keeping it for {line['ip_dst']} Lowest we got {float(latency[0][0])}ms vs {int(direct)}ms direct"}
         elif float(latency[0][0]) < int(direct) or options["force"] == True:
             if options['whitelist']:
                 for entry in latency:
@@ -147,7 +170,7 @@ class Bender(Tools):
             #Run
             command = f'ip route add {subnet} via 10.0.251.{latency[0][1]} dev vxlan1 table BENDER'
             resp = Bender.cmd(command)
-        return {"success":True,"possible":True,"line":line,"subnet":subnet,"msg":f"Routed {line['ip_dst']} via 10.0.251.{latency[0][1]} improved latency by {round(diff,1)}ms"}
+        return {"success":True,"possible":True,"line":line,"subnet":subnet,"msg":f"Routed {line['ip_dst']} ({subnet}) via 10.0.251.{latency[0][1]} improved latency by {round(diff,1)}ms"}
         
     @staticmethod
     def checkNode(server):
@@ -217,7 +240,7 @@ class Bender(Tools):
         return recheck
 
     def asnLookUp(self,asnList,line):
-        options,asndata = {"loadBalancing":True,"route":"/32","ignore":False,"ports":True,"force":False,"multi":False,"whitelist":[],"blacklist":[],"subnet":""},None
+        options,asndata = {"loadBalancing":True,"route":"/24","ignore":False,"ports":True,"force":False,"multi":False,"whitelist":[],"blacklist":[],"subnet":""},None
         asndata = self.asndb.lookup(line['ip_dst'])
         #Check if the lookup was successfull
         if asndata[0] is not None:
@@ -286,6 +309,8 @@ class Bender(Tools):
             activeSubnets.append(options['subnet'])
             #Skip if already in history
             if options['subnet'] in self.files['history.json']: continue
+            #Skip if listed in ignoreSubnets
+            if options['subnet'] in self.files['config.json']['ignoreSubnets']: continue
             #Check if route for IP already exists
             route = self.cmd("ip r get "+line['ip_dst'])[0]
             if 'vxlan1' in route:
@@ -335,8 +360,11 @@ class Bender(Tools):
         for result in results:
             logging.info(result['msg'])
             if result['subnet'] not in self.files['history.json']: self.files['history.json'][result['subnet']] = {}
-            if result['possible'] == False:
-                #wait 8-12 hours before re-check, since we could not optimize
+            if result['possible'] == True and result['success'] == False:
+                #wait 4-8 hours before re-check, latency difference wasn't high enough or direct was better
+                self.files['history.json'][result['subnet']] = {'ip':result['line']['ip_dst'],'port':result['line']['port_dst'],'expiry':int(datetime.now().timestamp()) + random.randint(14400, 28800)}
+            elif result['possible'] == False:
+                #wait 8-12 hours before re-check, since we could not optimize / no pingable ip
                 self.files['history.json'][result['subnet']] = {'ip':result['line']['ip_dst'],'port':result['line']['port_dst'],'expiry':int(datetime.now().timestamp()) + random.randint(28800, 43200)}
             else:
                 #wait 2-6 hours before re-check
