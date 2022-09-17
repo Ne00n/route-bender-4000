@@ -309,6 +309,8 @@ class Bender(Tools):
             activeSubnets.append(options['subnet'])
             #Skip if already in history
             if options['subnet'] in self.files['history.json']: continue
+            #Skip if listed in ignoreSubnets
+            if options['subnet'] in self.files['config.json']['ignoreSubnets']: continue
             #Check if route for IP already exists
             route = self.cmd("ip r get "+line['ip_dst'])[0]
             if 'vxlan1' in route:
