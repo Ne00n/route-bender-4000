@@ -305,7 +305,9 @@ class Bender(Tools):
             ips.append(line['ip_dst'])
             #Filter ASN if loadBalancing... is disabled/enabled
             options,asndata,asnList = self.asnLookUp(asnList,line)
+            #if ignored = True or ports in ignorePorts
             if options == False: continue
+            #tracking active subnets, preventing re-optimizing active links
             activeSubnets.append(options['subnet'])
             #Skip if already in history
             if options['subnet'] in self.files['history.json']: continue
