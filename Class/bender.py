@@ -182,8 +182,10 @@ class Bender(Tools):
             routes = Bender.cmd('ip route show table BENDER via 10.0.251.'+lastByte[0][1])[0]
             parsed = re.findall("^([0-9.\/]+)",routes, re.MULTILINE | re.DOTALL)
             for entry in parsed:
-                Bender.cmd('ip route del '+entry+' via 10.0.251.'+lastByte[0][1]+' dev vxlan1 table BENDER')
                 logging.debug(f"Removing {entry} from routing table")
+                Bender.cmd(f'ip route del {entry} via 10.0.251.{lastByte[0][1]} dev vxlan1 table BENDER')
+                logging.debug(f"Removing {entry} from history.json")
+                if entry in self.files['history.json']: del self.files['history.json'][entry]
             return False
         else:
             return True
@@ -349,7 +351,7 @@ class Bender(Tools):
                         #Remove from history.json
                         if not "/" in entry: entry = f"{entry}/32"
                         logging.info(f"Removing {entry} from history.json")
-                        del self.files['history.json'][entry]
+                        if entry in self.files['history.json']: del self.files['history.json'][entry]
                         break
             threads.append({"subnet":options['subnet'],"line":line,"options":options,"asndata":asndata,"files":self.files})
             logging.info(f"Analyzing {data['ip']}")
