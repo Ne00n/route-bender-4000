@@ -20,8 +20,8 @@ class Tools:
     def mtrIP(target,options,asndata):
         orgTarget = target
         if asndata[0] is not None and options["multi"] == True:
-            ips = [1,2,3,252,253,254]
-            ip,sub = asndata[1].split("/")
+            ips = [0,1,2,3,4,5,252,253,254]
+            ip,prefix = options['subnet'].split("/")
             target += " "+ip
             for entry in ips: target += f" {ip[:-1]}{entry}"
         direct = Tools.cmd("fping -c6 "+target)
