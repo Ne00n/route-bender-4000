@@ -242,7 +242,7 @@ class Bender(Tools):
         return recheck
 
     def asnLookUp(self,asnList,line):
-        asndata = None
+        options,asndata = {"loadBalancing":True,"route":"/24","ignore":False,"ports":True,"force":False,"multi":False,"whitelist":[],"blacklist":[],"subnet":""},None
         asndata = self.asndb.lookup(line['ip_dst'])
         #Check if the lookup was successfull
         if asndata[0] is not None:
