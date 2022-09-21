@@ -1,4 +1,4 @@
-import subprocess, re
+import subprocess, logging, re
 
 class Tools:
 
@@ -20,6 +20,7 @@ class Tools:
     def mtrIP(target,options,asndata):
         orgTarget = target
         if asndata[0] is not None and options["multi"] == True:
+            logging.debug(f"{target} multi")
             ips = [0,1,2,3,4,5,252,253,254]
             ip,prefix = options['subnet'].split("/")
             target += " "+ip
@@ -42,8 +43,7 @@ class Tools:
             for result in tmp:
                 if target in result: direct[1] +=result+"\n"
         if '100%' in direct[1]:
-            print(target,"not reachable, trying to MTR")
-            print(f"MTR running {target}")
+            logging.debug(f"{target} not reachable, trying to MTR")
             result = Tools.cmd('mtr '+target+' --report --report-cycles 4 --no-dns')
             parsed = re.findall("-- ([0-9.]+)",result[0], re.MULTILINE)
             for run in range(1,3):

@@ -1,5 +1,5 @@
 from concurrent.futures import ProcessPoolExecutor as Pool
-import random, logging, pyasn, time, json, re, os
+import random, logging, pyasn, time, json, sys, re, os
 from netaddr import IPNetwork, IPAddress
 from datetime import datetime
 from threading import Thread
@@ -16,6 +16,7 @@ class Bender(Tools):
             'debug': logging.DEBUG
         }
         logging.basicConfig(filename=f"{path}/bender.log", filemode='a', format='%(asctime)s %(levelname)s %(message)s',datefmt='%H:%M:%S',level=levels[level])
+        logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
         #Files
         filesToLoad = {path+'/config/nodes.json':True,path+'/config/config.json':True,'/tmp/pmacct_avg.json':True,path+'/data/loadBalancing.json':False,path+'/data/history.json':False}
         self.files = {}
