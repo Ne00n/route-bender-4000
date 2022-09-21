@@ -178,6 +178,7 @@ class Bender(Tools):
     def checkNode(server):
         lastByte = re.findall("^([0-9.]+)\.([0-9]+)",server, re.MULTILINE | re.DOTALL)
         direct = Bender.cmd('fping -c3 10.0.251.'+lastByte[0][1])[1]
+        subnets = []
         if '100%' in direct:
             logging.debug(direct)
             logging.warning(f"10.0.251.{lastByte[0][1]} is down, removing routes")
@@ -187,10 +188,8 @@ class Bender(Tools):
                 logging.debug(f"Removing {entry} from routing table")
                 Bender.cmd(f'ip route del {entry} via 10.0.251.{lastByte[0][1]} dev vxlan1 table BENDER')
                 logging.debug(f"Removing {entry} from history.json")
-                if entry in self.files['history.json']: del self.files['history.json'][entry]
-            return False
-        else:
-            return True
+                subnets.append(entry)
+        return subnets
 
     def debug(self,ip):
         asndata = self.asndb.lookup(ip)
@@ -384,8 +383,13 @@ class Bender(Tools):
         #wait for everything
         pool.shutdown(wait=True)
         #process results
-        for response in results: 
-            if response: online += 1
+        for response in results:
+            #when the list is empty = online 
+            if not response: 
+                online += 1
+            else:
+                for subnet in response:
+                    if subnet in self.files['history.json']: del self.files['history.json'][subnet]
         logging.debug(f"Status {len(nodeThreads)}/{online} online")
         #updating json files
         saving = ['loadBalancing.json','history.json']
