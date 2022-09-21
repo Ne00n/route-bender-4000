@@ -148,7 +148,7 @@ class Bender(Tools):
         #Load Balancing
         if asndata[0] is not None:
             group = Bender.checkASNGroup(files,asndata[0])
-            loadbalancing = group['settings'] if group else options
+            loadBalancing = group['settings'] if group else options
             loadBalancingASN = group['asns'] if group else asndata[0]
             if loadBalancing['loadBalancing'] is False:
                 if loadBalancingASN in files['loadBalancing.json']:
