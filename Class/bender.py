@@ -145,26 +145,22 @@ class Bender(Tools):
                 latency[0][0] = entry[0]
                 latency[0][1] = entry[1]
                 break
+        #Load Balancing
+        if asndata[0] is not None:
+            group = Bender.checkASNGroup(files,asndata[0])
+            loadbalancing = group['settings'] if group else options
+            loadBalancingASN = group['asns'] if group else asndata[0]
+            if loadBalancing['loadBalancing'] is False:
+                if loadBalancingASN in files['loadBalancing.json']:
+                    latency[0][1] = files['loadBalancing.json'][loadBalancingASN]
+                else:
+                    files['loadBalancing.json'][loadBalancingASN] = latency[0][1]
         diff = direct - float(latency[0][0])
         if diff < 2 and diff > 0 and options["force"] == False:
             return {"success":False,"possible":True,"line":line,"subnet":subnet,"msg":f"Difference less than 2ms, skipping {float(direct)} vs {float(latency[0][0])} for {line['ip_dst']}"}
         elif diff < 2 and options["force"] == False:
             return {"success":False,"possible":True,"line":line,"subnet":subnet,"msg":f"Direct route is better, keeping it for {line['ip_dst']} Lowest we got {float(latency[0][0])}ms vs {int(direct)}ms direct"}
         elif float(latency[0][0]) < int(direct) or options["force"] == True:
-            if asndata[0] is not None:
-                group = Bender.checkASNGroup(files,asndata[0])
-                if group != False:
-                    if group['settings']['loadBalancing'] is False:
-                        if group['asns'] in files['loadBalancing.json']:
-                            latency[0][1] = files['loadBalancing.json'][group['asns']]
-                        else:
-                            files['loadBalancing.json'][group['asns']] = latency[0][1]
-                else:
-                    if options['loadBalancing'] is False:
-                        if asndata[0] in files['loadBalancing.json']:
-                            latency[0][1] = files['loadBalancing.json'][asndata[0]]
-                        else:
-                            files['loadBalancing.json'][asndata[0]] = latency[0][1]
             #Run
             command = f'ip route add {subnet} via 10.0.251.{latency[0][1]} dev vxlan1 table BENDER'
             resp = Bender.cmd(command)
