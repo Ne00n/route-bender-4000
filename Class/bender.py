@@ -365,6 +365,10 @@ class Bender(Tools):
             else:
                 #wait 2-6 hours before re-check
                 self.files['history.json'][result['subnet']] = {'ip':result['line']['ip_dst'],'port':result['line']['port_dst'],'expiry':int(datetime.now().timestamp()) + random.randint(7200, 21600)}
+            #loadbalancing
+            if result['lbMap']:
+                for asn,node in result['lbMap'].items():
+                    self.files['loadBalancing.json'][asn] = node
         #check nodes
         logging.debug("Checking Nodes")
         nodeThreads,online = [],0
