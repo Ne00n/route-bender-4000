@@ -112,10 +112,10 @@ class Bender(Tools):
 
     @staticmethod
     def magic(payload):
-        line,options,asndata,files,subnet = payload['line'],payload['options'],payload['asndata'],payload['files'],payload['subnet']
+        line,options,asndata,files,subnet,lbMap = payload['line'],payload['options'],payload['asndata'],payload['files'],payload['subnet'],{}
         logging.debug(f"Running {line['ip_dst']}")
         lastIP,direct = Bender.mtrIP(line['ip_dst'],options,asndata)
-        if lastIP is False: return {"success":False,"possible":False,"line":line,"subnet":subnet,"msg":f"Could not optimize {line['ip_dst']}, no pingable IP found"}
+        if lastIP is False: return {"loadBalancing":lbMap,"success":False,"possible":False,"line":line,"subnet":subnet,"msg":f"Could not optimize {line['ip_dst']}, no pingable IP found"}
         #fping
         threads,latency = [],[]
         for server in files['nodes.json']: threads.append({"server":server,"ip":lastIP})
@@ -148,23 +148,23 @@ class Bender(Tools):
         #Load Balancing
         if asndata[0] is not None:
             group = Bender.checkASNGroup(files,asndata[0])
-            loadBalancing = group['settings'] if group else options
-            loadBalancingASN = group['asns'] if group else asndata[0]
-            if loadBalancing['loadBalancing'] is False:
-                if loadBalancingASN in files['loadBalancing.json']:
-                    latency[0][1] = files['loadBalancing.json'][loadBalancingASN]
+            lbSettings = group['settings'] if group else options
+            lbASN = group['asns'] if group else asndata[0]
+            if lbSettings['loadBalancing'] is False:
+                if lbASN in files['loadBalancing.json']:
+                    latency[0][1] = files['loadBalancing.json'][lbASN]
                 else:
-                    files['loadBalancing.json'][loadBalancingASN] = latency[0][1]
+                    lbMap[lbASN] = latency[0][1]
         diff = direct - float(latency[0][0])
         if diff < 2 and diff > 0 and options["force"] == False:
-            return {"success":False,"possible":True,"line":line,"subnet":subnet,"msg":f"Difference less than 2ms, skipping {float(direct)} vs {float(latency[0][0])} for {line['ip_dst']}"}
+            return {"loadBalancing":lbMap,"success":False,"possible":True,"line":line,"subnet":subnet,"msg":f"Difference less than 2ms, skipping {float(direct)} vs {float(latency[0][0])} for {line['ip_dst']}"}
         elif diff < 2 and options["force"] == False:
-            return {"success":False,"possible":True,"line":line,"subnet":subnet,"msg":f"Direct route is better, keeping it for {line['ip_dst']} Lowest we got {float(latency[0][0])}ms vs {int(direct)}ms direct"}
+            return {"loadBalancing":lbMap,"success":False,"possible":True,"line":line,"subnet":subnet,"msg":f"Direct route is better, keeping it for {line['ip_dst']} Lowest we got {float(latency[0][0])}ms vs {int(direct)}ms direct"}
         elif float(latency[0][0]) < int(direct) or options["force"] == True:
             #Run
             command = f'ip route add {subnet} via 10.0.251.{latency[0][1]} dev vxlan1 table BENDER'
             resp = Bender.cmd(command)
-        return {"success":True,"possible":True,"line":line,"subnet":subnet,"msg":f"Routed {line['ip_dst']} ({subnet}) via 10.0.251.{latency[0][1]} improved latency by {round(diff,1)}ms"}
+        return {"loadBalancing":lbMap,"success":True,"possible":True,"line":line,"subnet":subnet,"msg":f"Routed {line['ip_dst']} ({subnet}) via 10.0.251.{latency[0][1]} improved latency by {round(diff,1)}ms"}
         
     @staticmethod
     def checkNode(server):
