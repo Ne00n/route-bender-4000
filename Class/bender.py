@@ -19,6 +19,7 @@ class Bender(Tools):
         #Files
         filesToLoad = {path+'/config/nodes.json':True,path+'/config/config.json':True,'/tmp/pmacct_avg.json':True,path+'/data/loadBalancing.json':False,path+'/data/history.json':False}
         self.files = {}
+        os.nice(20)
         if load:
             logging.debug("Loading asn")
             self.asndb = pyasn.pyasn(path+'/asn.dat')
@@ -37,6 +38,7 @@ class Bender(Tools):
                         self.files[parts[len(parts)-1]] = {}
                     else:
                         exit(f"Failed to load {file}")
+        os.nice(0)
 
     def prepare(self):
         logging.debug("Prepare")
