@@ -20,7 +20,7 @@ class Tools:
     def mtrIP(target,options,asndata):
         orgTarget = target
         if asndata[0] is not None and options["multi"] == True:
-            logging.debug(f"{target} multi")
+            logging.debug(f"ASN {asndata[0]} {target} multi")
             ips = [0,1,2,3,4,5,252,253,254]
             ip,prefix = options['subnet'].split("/")
             target += " "+ip
@@ -49,17 +49,17 @@ class Tools:
             for run in range(1,3):
                 lastIP = parsed[len(parsed) - run]
                 if Tools.isPrivate(lastIP):
-                    print(lastIP+" is private, skipping")
+                    logging.debug(f"{lastIP} is private, skipping")
                     return False,False
                 if lastIP != "???":
                     direct = Tools.cmd("fping -c6 "+lastIP)
                 if '100%' in direct[1]:
-                    print(target,"("+lastIP+") not reachable.")
+                    logging.debug(f"{target} ({lastIP}) not reachable")
                 else:
-                    print(f"Found reachable IP in MTR {lastIP}")
+                    logging.info(f"Found reachable IP {lastIP} for {target}")
                     return lastIP,direct
                 if run == 2:
-                    print("Could not find pingable IP for",target)
+                    logging.debug(f"Could not find reachable IP for {target}")
                     return False,False
         return target,direct
 
