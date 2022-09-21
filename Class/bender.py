@@ -136,25 +136,21 @@ class Bender(Tools):
         if not latency: return
         latency.sort()
         direct = Bender.getAvrg(direct[0])
+        #whitelist / blacklist
+        for entry in latency:
+            #when exit in blacklist continue
+            if int(entry[1]) in options['blacklist']: continue
+            if int(entry[0]) != 65000 and (int(entry[1]) in options['whitelist'] or options['blacklist'] and int(entry[1]) not in options['blacklist']):
+                #push it to the top
+                latency[0][0] = entry[0]
+                latency[0][1] = entry[1]
+                break
         diff = direct - float(latency[0][0])
         if diff < 2 and diff > 0 and options["force"] == False:
             return {"success":False,"possible":True,"line":line,"subnet":subnet,"msg":f"Difference less than 2ms, skipping {float(direct)} vs {float(latency[0][0])} for {line['ip_dst']}"}
         elif diff < 2 and options["force"] == False:
             return {"success":False,"possible":True,"line":line,"subnet":subnet,"msg":f"Direct route is better, keeping it for {line['ip_dst']} Lowest we got {float(latency[0][0])}ms vs {int(direct)}ms direct"}
         elif float(latency[0][0]) < int(direct) or options["force"] == True:
-            if options['whitelist']:
-                for entry in latency:
-                    if int(entry[1]) in options['whitelist'] and int(entry[0]) != 65000:
-                        latency[0][0] = entry[0]
-                        latency[0][1] = entry[1]
-                        break
-            if options['blacklist']:
-                for entry in latency:
-                    if int(entry[1]) in options['blacklist']: continue
-                    if int(entry[0]) != 65000:
-                        latency[0][0] = entry[0]
-                        latency[0][1] = entry[1]
-                        break
             if asndata[0] is not None:
                 group = Bender.checkASNGroup(files,asndata[0])
                 if group != False:
