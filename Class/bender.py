@@ -2,8 +2,9 @@ from concurrent.futures import ProcessPoolExecutor as Pool
 import random, logging, pyasn, time, json, sys, re, os
 from netaddr import IPNetwork, IPAddress
 from datetime import datetime
-from threading import Thread
 from Class.tools import Tools
+from threading import Thread
+import multiprocessing
 
 class Bender(Tools):
     def __init__(self,path,load=True,level="info"):
@@ -121,10 +122,11 @@ class Bender(Tools):
         threads,latency = [],[]
         for server in files['nodes.json']: threads.append({"server":server,"ip":lastIP})
         #dispatch
-        pool = Pool(max_workers = int(len(files['nodes.json']) / 3))
+        pool = multiprocessing.Pool(processes = int(len(files['nodes.json']) / 3))
         results = pool.map(Bender.fpingWorker, threads)
         #wait for everything
-        pool.shutdown(wait=True)
+        pool.close()
+        pool.join()
         #process results
         for data in results: 
             if data['parsed']:
@@ -200,10 +202,11 @@ class Bender(Tools):
         threads.append({"server":"direct","ip":ip})
         for server in self.files['nodes.json']: threads.append({"server":server,"ip":ip})
         #dispatch
-        pool = Pool(max_workers = int(len(self.files['nodes.json']) / 3))
+        pool = multiprocessing.Pool(processes = int(len(self.files['nodes.json']) / 3))
         results = pool.map(self.fpingWorker, threads)
         #wait for everything
-        pool.shutdown(wait=True)
+        pool.close()
+        pool.join()
         #process results
         for data in results: 
             if data['parsed']:
@@ -375,10 +378,11 @@ class Bender(Tools):
         nodeThreads,online = [],0
         for server in self.files['nodes.json']: nodeThreads.append(server)
         #dispatch
-        pool = Pool(max_workers = len(nodeThreads))
+        pool = multiprocessing.Pool(processes = len(nodeThreads))
         results = pool.map(self.checkNode, nodeThreads)
         #wait for everything
-        pool.shutdown(wait=True)
+        pool.close()
+        pool.join()
         #process results
         for response in results:
             #when the list is empty = online 
