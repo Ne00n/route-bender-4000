@@ -391,7 +391,7 @@ class Bender(Tools):
             else:
                 for subnet in response:
                     if subnet in self.files['history.json']: del self.files['history.json'][subnet]
-        logging.debug(f"Status {len(nodeThreads)}/{online} online")
+        logging.debug(f"Status {online}/{len(nodeThreads)} online")
         #updating json files
         saving = ['loadBalancing.json','history.json']
         for entry in saving:
