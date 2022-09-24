@@ -65,6 +65,12 @@ systemctl start pmacctd
 pyasn_util_download.py --latest && pyasn_util_convert.py --single rib.202* asn.dat
 ```
 
+**Debugging**<br />
+By default the logging runs on INFO and is getting saved to bender.log<br />
+You can switch it to debug by supplying the parameter: bender.py level debug<br />
+
+If you use functions such as optimize, debug, show, stats, clear... these are not logged, only printed, since they are intended for manual use.<br />
+
 **Settings**<br />
 
 ignore, if you wanna ignore an entire ASN, e.g Vivox<br />

@@ -1,9 +1,10 @@
 from concurrent.futures import ProcessPoolExecutor as Pool
-import random, logging, pyasn, time, json, re, os
+import random, logging, pyasn, time, json, sys, re, os
 from netaddr import IPNetwork, IPAddress
 from datetime import datetime
-from threading import Thread
 from Class.tools import Tools
+from threading import Thread
+import multiprocessing
 
 class Bender(Tools):
     def __init__(self,path,load=True,level="info"):
@@ -16,9 +17,11 @@ class Bender(Tools):
             'debug': logging.DEBUG
         }
         logging.basicConfig(filename=f"{path}/bender.log", filemode='a', format='%(asctime)s %(levelname)s %(message)s',datefmt='%H:%M:%S',level=levels[level])
+        logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
         #Files
         filesToLoad = {path+'/config/nodes.json':True,path+'/config/config.json':True,'/tmp/pmacct_avg.json':True,path+'/data/loadBalancing.json':False,path+'/data/history.json':False}
         self.files = {}
+        os.nice(20)
         if load:
             logging.debug("Loading asn")
             self.asndb = pyasn.pyasn(path+'/asn.dat')
@@ -37,6 +40,7 @@ class Bender(Tools):
                         self.files[parts[len(parts)-1]] = {}
                     else:
                         exit(f"Failed to load {file}")
+        os.nice(0)
 
     def prepare(self):
         logging.debug("Prepare")
@@ -110,18 +114,19 @@ class Bender(Tools):
 
     @staticmethod
     def magic(payload):
-        line,options,asndata,files,subnet = payload['line'],payload['options'],payload['asndata'],payload['files'],payload['subnet']
+        line,options,asndata,files,subnet,lbMap = payload['line'],payload['options'],payload['asndata'],payload['files'],payload['subnet'],{}
         logging.debug(f"Running {line['ip_dst']}")
         lastIP,direct = Bender.mtrIP(line['ip_dst'],options,asndata)
-        if lastIP is False: return {"success":False,"possible":False,"line":line,"subnet":subnet,"msg":f"Could not optimize {line['ip_dst']}, no pingable IP found"}
+        if lastIP is False: return {"lbMap":lbMap,"success":False,"possible":False,"line":line,"subnet":subnet,"msg":f"Could not optimize {line['ip_dst']}, no pingable IP found"}
         #fping
         threads,latency = [],[]
         for server in files['nodes.json']: threads.append({"server":server,"ip":lastIP})
         #dispatch
-        pool = Pool(max_workers = int(len(files['nodes.json']) / 3))
+        pool = multiprocessing.Pool(processes = int(len(files['nodes.json']) / 3))
         results = pool.map(Bender.fpingWorker, threads)
         #wait for everything
-        pool.shutdown(wait=True)
+        pool.close()
+        pool.join()
         #process results
         for data in results: 
             if data['parsed']:
@@ -134,59 +139,52 @@ class Bender(Tools):
         if not latency: return
         latency.sort()
         direct = Bender.getAvrg(direct[0])
+        #whitelist / blacklist
+        for entry in latency:
+            #when exit in blacklist continue
+            if int(entry[1]) in options['blacklist']: continue
+            if int(entry[0]) != 65000 and (int(entry[1]) in options['whitelist'] or options['blacklist'] and int(entry[1]) not in options['blacklist']):
+                #push it to the top
+                latency[0][0] = entry[0]
+                latency[0][1] = entry[1]
+                break
+        #Load Balancing
+        if asndata[0] is not None:
+            group = Bender.checkASNGroup(files,asndata[0])
+            lbSettings = group['settings'] if group else options
+            lbASN = group['asns'] if group else asndata[0]
+            if lbSettings['loadBalancing'] is False:
+                if lbASN in files['loadBalancing.json']:
+                    latency[0][1] = files['loadBalancing.json'][lbASN]
+                else:
+                    lbMap[lbASN] = latency[0][1]
         diff = direct - float(latency[0][0])
         if diff < 2 and diff > 0 and options["force"] == False:
-            return {"success":False,"possible":True,"line":line,"subnet":subnet,"msg":f"Difference less than 2ms, skipping {float(direct)} vs {float(latency[0][0])} for {line['ip_dst']}"}
+            return {"lbMap":lbMap,"success":False,"possible":True,"line":line,"subnet":subnet,"msg":f"Difference less than 2ms, skipping {float(direct)} vs {float(latency[0][0])} for {line['ip_dst']}"}
         elif diff < 2 and options["force"] == False:
-            return {"success":False,"possible":True,"line":line,"subnet":subnet,"msg":f"Direct route is better, keeping it for {line['ip_dst']} Lowest we got {float(latency[0][0])}ms vs {int(direct)}ms direct"}
+            return {"lbMap":lbMap,"success":False,"possible":True,"line":line,"subnet":subnet,"msg":f"Direct route is better, keeping it for {line['ip_dst']} Lowest we got {float(latency[0][0])}ms vs {int(direct)}ms direct"}
         elif float(latency[0][0]) < int(direct) or options["force"] == True:
-            if options['whitelist']:
-                for entry in latency:
-                    if int(entry[1]) in options['whitelist'] and int(entry[0]) != 65000:
-                        latency[0][0] = entry[0]
-                        latency[0][1] = entry[1]
-                        break
-            if options['blacklist']:
-                for entry in latency:
-                    if int(entry[1]) in options['blacklist']: continue
-                    if int(entry[0]) != 65000:
-                        latency[0][0] = entry[0]
-                        latency[0][1] = entry[1]
-                        break
-            if asndata[0] is not None:
-                group = Bender.checkASNGroup(files,asndata[0])
-                if group != False:
-                    if group['settings']['loadBalancing'] is False:
-                        if group['asns'] in files['loadBalancing.json']:
-                            latency[0][1] = files['loadBalancing.json'][group['asns']]
-                        else:
-                            files['loadBalancing.json'][group['asns']] = latency[0][1]
-                else:
-                    if options['loadBalancing'] is False:
-                        if asndata[0] in files['loadBalancing.json']:
-                            latency[0][1] = files['loadBalancing.json'][asndata[0]]
-                        else:
-                            files['loadBalancing.json'][asndata[0]] = latency[0][1]
             #Run
             command = f'ip route add {subnet} via 10.0.251.{latency[0][1]} dev vxlan1 table BENDER'
             resp = Bender.cmd(command)
-        return {"success":True,"possible":True,"line":line,"subnet":subnet,"msg":f"Routed {line['ip_dst']} ({subnet}) via 10.0.251.{latency[0][1]} improved latency by {round(diff,1)}ms"}
+        return {"lbMap":lbMap,"success":True,"possible":True,"line":line,"subnet":subnet,"msg":f"Routed {line['ip_dst']} ({subnet}) via 10.0.251.{latency[0][1]} improved latency by {round(diff,1)}ms"}
         
     @staticmethod
     def checkNode(server):
         lastByte = re.findall("^([0-9.]+)\.([0-9]+)",server, re.MULTILINE | re.DOTALL)
         direct = Bender.cmd('fping -c3 10.0.251.'+lastByte[0][1])[1]
+        subnets = []
         if '100%' in direct:
             logging.debug(direct)
             logging.warning(f"10.0.251.{lastByte[0][1]} is down, removing routes")
             routes = Bender.cmd('ip route show table BENDER via 10.0.251.'+lastByte[0][1])[0]
             parsed = re.findall("^([0-9.\/]+)",routes, re.MULTILINE | re.DOTALL)
             for entry in parsed:
-                Bender.cmd('ip route del '+entry+' via 10.0.251.'+lastByte[0][1]+' dev vxlan1 table BENDER')
                 logging.debug(f"Removing {entry} from routing table")
-            return False
-        else:
-            return True
+                Bender.cmd(f'ip route del {entry} via 10.0.251.{lastByte[0][1]} dev vxlan1 table BENDER')
+                logging.debug(f"Removing {entry} from history.json")
+                subnets.append(entry)
+        return subnets
 
     def debug(self,ip):
         asndata = self.asndb.lookup(ip)
@@ -204,10 +202,11 @@ class Bender(Tools):
         threads.append({"server":"direct","ip":ip})
         for server in self.files['nodes.json']: threads.append({"server":server,"ip":ip})
         #dispatch
-        pool = Pool(max_workers = int(len(self.files['nodes.json']) / 3))
+        pool = multiprocessing.Pool(processes = int(len(self.files['nodes.json']) / 3))
         results = pool.map(self.fpingWorker, threads)
         #wait for everything
-        pool.shutdown(wait=True)
+        pool.close()
+        pool.join()
         #process results
         for data in results: 
             if data['parsed']:
@@ -260,27 +259,26 @@ class Bender(Tools):
             if base['ports'] == True:
                 if line['port_dst'] in self.files['config.json']['ignorePorts']: return False,[None,None],[]
             #Check Options
-            if "loadBalancing" in base: options['loadBalancing'] = base['loadBalancing']
-            if "force" in base: options['force'] = base['force']
-            if "multi" in base: options['multi'] = base['multi']
-            if "whitelist" in base: options['whitelist'] = base['whitelist']
-            if "blacklist" in base: options['blacklist'] = base['blacklist']
-            options['route'] = base['route']
+            if not "loadBalancing" in base: base['loadBalancing'] = True
+            if not "force" in base: base['force'] = False
+            if not "multi" in base: base['multi'] = False
+            if not "whitelist" in base: base['whitelist'] = []
+            if not "blacklist" in base: base['blacklist'] = []
             #Subnet
-            if options['route'] == "/32":
-                options['subnet'] = f"{line['ip_dst']}/32"
-            elif options['route'] == "/24":
+            if base['route'] == "/32":
+                base['subnet'] = f"{line['ip_dst']}/32"
+            elif base['route'] == "/24":
                 tmpIP = '.'.join(line['ip_dst'].split('.')[:-1])
-                options['subnet'] = f"{tmpIP}.0/24"
-            elif options['route'] == "dyn":
-                options['subnet'] = asndata[1]
+                base['subnet'] = f"{tmpIP}.0/24"
+            elif base['route'] == "dyn":
+                base['subnet'] = asndata[1]
         else:
             #Filter ports
             if line['port_dst'] in self.files['config.json']['ignorePorts']: return False,[None,None],[]
             #Subnet
-            options['subnet'] = f"{line['ip_dst']}/32"
+            base['subnet'] = f"{line['ip_dst']}/32"
         #Lets go bending
-        return options,asndata,asnList
+        return base,asndata,asnList
 
     def run(self):
         ips,asnList,activeSubnets,threads = [],[],[],[]
@@ -305,7 +303,9 @@ class Bender(Tools):
             ips.append(line['ip_dst'])
             #Filter ASN if loadBalancing... is disabled/enabled
             options,asndata,asnList = self.asnLookUp(asnList,line)
+            #if ignored = True or ports in ignorePorts
             if options == False: continue
+            #tracking active subnets, preventing re-optimizing active links
             activeSubnets.append(options['subnet'])
             #Skip if already in history
             if options['subnet'] in self.files['history.json']: continue
@@ -347,7 +347,7 @@ class Bender(Tools):
                         #Remove from history.json
                         if not "/" in entry: entry = f"{entry}/32"
                         logging.info(f"Removing {entry} from history.json")
-                        del self.files['history.json'][entry]
+                        if entry in self.files['history.json']: del self.files['history.json'][entry]
                         break
             threads.append({"subnet":options['subnet'],"line":line,"options":options,"asndata":asndata,"files":self.files})
             logging.info(f"Analyzing {data['ip']}")
@@ -369,19 +369,29 @@ class Bender(Tools):
             else:
                 #wait 2-6 hours before re-check
                 self.files['history.json'][result['subnet']] = {'ip':result['line']['ip_dst'],'port':result['line']['port_dst'],'expiry':int(datetime.now().timestamp()) + random.randint(7200, 21600)}
+            #loadbalancing
+            if result['lbMap']:
+                for asn,node in result['lbMap'].items():
+                    self.files['loadBalancing.json'][asn] = node
         #check nodes
         logging.debug("Checking Nodes")
         nodeThreads,online = [],0
         for server in self.files['nodes.json']: nodeThreads.append(server)
         #dispatch
-        pool = Pool(max_workers = len(nodeThreads))
+        pool = multiprocessing.Pool(processes = len(nodeThreads))
         results = pool.map(self.checkNode, nodeThreads)
         #wait for everything
-        pool.shutdown(wait=True)
+        pool.close()
+        pool.join()
         #process results
-        for response in results: 
-            if response: online += 1
-        logging.debug(f"Status {len(nodeThreads)}/{online} online")
+        for response in results:
+            #when the list is empty = online 
+            if not response: 
+                online += 1
+            else:
+                for subnet in response:
+                    if subnet in self.files['history.json']: del self.files['history.json'][subnet]
+        logging.debug(f"Status {online}/{len(nodeThreads)} online")
         #updating json files
         saving = ['loadBalancing.json','history.json']
         for entry in saving:
