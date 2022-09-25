@@ -264,6 +264,7 @@ class Bender(Tools):
             if not "multi" in base: base['multi'] = False
             if not "whitelist" in base: base['whitelist'] = []
             if not "blacklist" in base: base['blacklist'] = []
+            if not "route" in base: base['route'] = "/24"
             #Subnet
             if base['route'] == "/32":
                 base['subnet'] = f"{line['ip_dst']}/32"
