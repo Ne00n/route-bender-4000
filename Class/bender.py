@@ -276,6 +276,8 @@ class Bender(Tools):
             elif base['route'] == "dyn":
                 base['subnet'] = asndata[1]
         else:
+            #load options
+            base = options
             #Filter ports
             if line['port_dst'] in self.files['config.json']['ignorePorts']: return False,[None,None],[]
             #Subnet
