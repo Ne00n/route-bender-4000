@@ -52,16 +52,19 @@ class Bender(Tools):
         route = self.cmd("ip rule list table BENDER all")[0]
         if not "BENDER" in route:
             self.cmd('ip rule add from 0.0.0.0/0 table BENDER')
+            self.cmd('ip -6 rule add from ::/0 table BENDER')
         for server in self.files['nodes.json']:
             lastByte = re.findall("^([0-9.]+)\.([0-9]+)",server, re.MULTILINE | re.DOTALL)
             node = str(base + int(lastByte[0][1]))
             if node not in tables:
                 self.cmd(["echo '"+node+" Node"+node+"' >> /etc/iproute2/rt_tables"])
             if "10.0.252."+lastByte[0][1] not in inetList:
-                self.cmd("ip addr add 10.0.252."+lastByte[0][1]+"/32 dev lo")
-                self.cmd('ip route flush table Node'+node)
-                self.cmd('ip rule add from 10.0.252.'+lastByte[0][1]+'/32 table Node'+node)
-                self.cmd('ip route add default via 10.0.251.'+lastByte[0][1]+' table Node'+node)
+                self.cmd(f'ip addr add 10.0.252.{lastByte[0][1]}/32 dev lo')
+                self.cmd(f'ip -6 addr add fc10:0:252::{lastByte[0][1]}/128 dev lo')
+                self.cmd(f'ip rule add from 10.0.252.{lastByte[0][1]}/32 table Node{node}')
+                self.cmd(f'ip -6 rule add from fc10:0:252::{lastByte[0][1]}/128 table Node{node}')
+                self.cmd(f'ip route add default via 10.0.251.{lastByte[0][1]} table Node{node}')
+                self.cmd(f'ip -6 route add default via fc00:0:251::{lastByte[0][1]} table Node{node}')
 
     def clear(self):
         print("Flushing Routing Table...")
