@@ -81,7 +81,7 @@ class Tools:
     @staticmethod
     def getAvrg(fping):
         latency = []
-        parsed = re.findall("([0-9.]+).*?([0-9]+.[0-9]|NaN avg).*?([0-9]+)% loss",fping, re.MULTILINE)
+        parsed = re.findall("([0-9:.]+).*?([0-9]+.[0-9]+|NaN avg).*?([0-9]+)% loss",fping, re.MULTILINE)
         del parsed[0] #drop the first ping result
         for ip,ms,loss in parsed:
             if ms == "NaN avg": ms = 65000
