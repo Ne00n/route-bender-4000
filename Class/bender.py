@@ -303,6 +303,10 @@ class Bender(Tools):
             if '192.168.' in line['ip_dst']: continue
             if '172.16.' in line['ip_dst']: continue
             if '10.0.' in line['ip_dst']: continue
+            #Filter out private ranges
+            if IPAddress(line['ip_dst']).is_private(): continue
+            #Filter out reserved ranges
+            if IPAddress(line['ip_dst']).is_reserved(): continue
             #Filter double entries
             if line['ip_dst'] in ips: continue
             ips.append(line['ip_dst'])
