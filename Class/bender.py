@@ -349,21 +349,22 @@ class Bender(Tools):
             route = self.cmd(f"ip r get {data['ip']}")[0]
             if 'vxlan1' in route:
                 #Get Exit from IP
-                node = parsed = re.findall("via ([0-9.]+)",route, re.MULTILINE | re.DOTALL)[0]
+                node = parsed = re.findall("via ([a-z0-9:.]+)",route, re.MULTILINE | re.DOTALL)[0]
                 #Get all Subnets from Exit
-                routes = self.cmd(f'ip route show table BENDER via {node}')[0]
+                ex = "ip" if IPAddress(data['ip']).version == 4 else "ip -6"
+                routes = self.cmd(f'{ex} route show table BENDER via {node}')[0]
                 #Parse all Subnets
-                parsed = re.findall("^([0-9.\/]+)",routes, re.MULTILINE | re.DOTALL)
+                parsed = re.findall("^([a-z0-9:.\/]+)",routes, re.MULTILINE | re.DOTALL)
                 for entry in parsed:
                     #Find correct route/subnet
                     if IPAddress(data['ip']) in IPNetwork(entry):
                         #Remove the subnet if re-check is scheduled
                         logging.info(f"Removing {entry} from routing table")
-                        self.cmd(f'ip route del {entry} via {node} dev vxlan1 table BENDER')
+                        vxlan = "vxlan1" if IPAddress(data['ip']).version == 4 else "vxlan1v6"
+                        self.cmd(f'ip route del {entry} via {node} dev {vxlan} table BENDER')
                         #Remove from history.json
-                        if not "/" in entry: entry = f"{entry}/32"
-                        logging.info(f"Removing {entry} from history.json")
-                        if entry in self.files['history.json']: del self.files['history.json'][entry]
+                        logging.info(f"Removing {data['subnet']} from history.json")
+                        if entry in self.files['history.json']: del self.files['history.json'][data['subnet']]
                         break
             threads.append({"subnet":options['subnet'],"line":line,"options":options,"asndata":asndata,"files":self.files})
             logging.info(f"Analyzing {data['ip']}")
