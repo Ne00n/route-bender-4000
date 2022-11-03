@@ -4,7 +4,6 @@ from logging.handlers import RotatingFileHandler
 from netaddr import IPNetwork, IPAddress
 from datetime import datetime
 from Class.tools import Tools
-from threading import Thread
 import multiprocessing
 
 class Bender(Tools):
