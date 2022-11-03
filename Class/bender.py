@@ -186,11 +186,20 @@ class Bender(Tools):
         if '100%' in direct:
             logging.debug(direct)
             logging.warning(f"10.0.251.{lastByte[0][1]} is down, removing routes")
+            #IPv4
             routes = Bender.cmd('ip route show table BENDER via 10.0.251.'+lastByte[0][1])[0]
             parsed = re.findall("^([0-9.\/]+)",routes, re.MULTILINE | re.DOTALL)
             for entry in parsed:
                 logging.debug(f"Removing {entry} from routing table")
                 Bender.cmd(f'ip route del {entry} via 10.0.251.{lastByte[0][1]} dev vxlan1 table BENDER')
+                logging.debug(f"Removing {entry} from history.json")
+                subnets.append(entry)
+            #IPv6
+            routes = Bender.cmd(f'ip -6 route show table BENDER via fc00:0:251::{lastByte[0][1]}')[0]
+            parsed = re.findall("^([a-z0-9:.\/]+)",routes, re.MULTILINE | re.DOTALL)
+            for entry in parsed:
+                logging.debug(f"Removing {entry} from routing table")
+                Bender.cmd(f'ip -6 route del {entry} via fc00:0:251::{lastByte[0][1]} dev vxlan1v6 table BENDER')
                 logging.debug(f"Removing {entry} from history.json")
                 subnets.append(entry)
         return subnets
@@ -288,7 +297,7 @@ class Bender(Tools):
             #Filter ports
             if line['port_dst'] in self.files['config.json']['ignorePorts']: return False,[None,None],[]
             #Subnet
-            base['subnet'] = f"{line['ip_dst']}/32" if IPAddress(line['ip_dst']).version == 4 else f"{line['ip_dst']}/128"
+            base['subnet'] = f"{line['ip_dst']}/24" if IPAddress(line['ip_dst']).version == 4 else f"{line['ip_dst']}/64"
         #Lets go bending
         return base,asndata,asnList
 
