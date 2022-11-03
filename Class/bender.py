@@ -170,9 +170,13 @@ class Bender(Tools):
             return {"lbMap":lbMap,"success":False,"possible":True,"line":line,"subnet":subnet,"msg":f"Direct route is better, keeping it for {line['ip_dst']} Lowest we got {float(latency[0][0])}ms vs {int(direct)}ms direct"}
         elif float(latency[0][0]) < int(direct) or options["force"] == True:
             #Run
-            command = f'ip route add {subnet} via 10.0.251.{latency[0][1]} dev vxlan1 table BENDER'
-            resp = Bender.cmd(command)
-        return {"lbMap":lbMap,"success":True,"possible":True,"line":line,"subnet":subnet,"msg":f"Routed {line['ip_dst']} ({subnet}) via 10.0.251.{latency[0][1]} improved latency by {round(diff,1)}ms"}
+            if IPNetwork(subnet).version == 4:
+                dest = f"10.0.251.{latency[0][1]}"
+                Bender.cmd(f'ip route add {subnet} via {dest} dev vxlan1 table BENDER')
+            else:
+                dest = f"fc00:0:251::{latency[0][1]}"
+                Bender.cmd(f'ip -6 route add {subnet} via {dest} dev vxlan1v6 table BENDER')
+        return {"lbMap":lbMap,"success":True,"possible":True,"line":line,"subnet":subnet,"msg":f"Routed {line['ip_dst']} ({subnet}) via {dest} improved latency by {round(diff,1)}ms"}
         
     @staticmethod
     def checkNode(server):
@@ -284,7 +288,7 @@ class Bender(Tools):
             #Filter ports
             if line['port_dst'] in self.files['config.json']['ignorePorts']: return False,[None,None],[]
             #Subnet
-            base['subnet'] = f"{line['ip_dst']}/32"
+            base['subnet'] = f"{line['ip_dst']}/32" if IPAddress(line['ip_dst']).version == 4 else f"{line['ip_dst']}/128"
         #Lets go bending
         return base,asndata,asnList
 
