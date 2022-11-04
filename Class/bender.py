@@ -120,11 +120,11 @@ class Bender(Tools):
     def magic(payload):
         line,options,asndata,files,subnet,lbMap = payload['line'],payload['options'],payload['asndata'],payload['files'],payload['subnet'],{}
         logging.debug(f"Running {line['ip_dst']}")
-        lastIP,direct = Bender.mtrIP(line['ip_dst'],options,asndata)
-        if lastIP is False: return {"lbMap":lbMap,"success":False,"possible":False,"line":line,"subnet":subnet,"msg":f"Could not optimize {line['ip_dst']}, no pingable IP found"}
+        pingable,srcFping = Bender.mtrIP(line['ip_dst'],options,asndata)
+        if pingable == "0.0.0.0": return {"lbMap":lbMap,"success":False,"possible":False,"line":line,"subnet":subnet,"msg":f"Could not optimize {line['ip_dst']}, no pingable IP found"}
         #fping
         threads,latency = [],[]
-        for server in files['nodes.json']: threads.append({"server":server,"ip":lastIP})
+        for server in files['nodes.json']: threads.append({"server":server,"ip":pingable})
         #dispatch
         pool = multiprocessing.Pool(processes = int(len(files['nodes.json']) / 3))
         results = pool.map(Bender.fpingWorker, threads)
@@ -138,11 +138,11 @@ class Bender(Tools):
                 latency.append([avrg,data['lastByte'][0][1]])
                 logging.debug(f"Got {avrg}ms to {data['ip']} from {data['server']}")
             else:
-                logging.warning(f"{lastIP} is not reachable via {data['server']}")
+                logging.warning(f"{pingable} is not reachable via {data['server']}")
         #if we got no result abort       
         if not latency: return
         latency.sort()
-        direct = Bender.getAvrg(direct[0])
+        direct = Bender.getAvrg(srcFping)
         #whitelist / blacklist
         for entry in latency:
             #when exit in blacklist continue
@@ -211,9 +211,9 @@ class Bender(Tools):
         else:
             options = {"force":False,"multi":True}
         print("Running fping")
-        mtrIP,direct = self.mtrIP(ip,options,asndata)
-        if mtrIP is False: exit()
-        ip = mtrIP
+        pingable,srcFping = self.mtrIP(ip,options,asndata)
+        if pingable == "0.0.0.0": exit()
+        ip = pingable
         #fping
         threads,fping = [],{}
         threads.append({"server":"direct","ip":ip})
