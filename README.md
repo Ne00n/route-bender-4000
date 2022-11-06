@@ -62,7 +62,7 @@ systemctl start pmacctd
 
 **Update asn data**
 ```
-pyasn_util_download.py --latest && pyasn_util_convert.py --single rib.202* asn.dat
+pyasn_util_download.py --latestv46 && pyasn_util_convert.py --single rib.202* asn.dat
 ```
 
 **Debugging**<br />
