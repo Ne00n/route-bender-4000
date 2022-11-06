@@ -288,7 +288,7 @@ class Bender(Tools):
                 base['subnet'] = f"{line['ip_dst']}/32" if IPAddress(line['ip_dst']).version == 4 else f"{line['ip_dst']}/128"
             elif base['route'] == "/24":
                 tmpIP = '.'.join(line['ip_dst'].split('.')[:-1])
-                base['subnet'] = f"{tmpIP}.0/24" if IPAddress(line['ip_dst']).version == 4 else f"{line['ip_dst']}/64"
+                base['subnet'] = f"{tmpIP}.0/24" if IPAddress(line['ip_dst']).version == 4 else f"{line['ip_dst']}/48"
             elif base['route'] == "dyn":
                 base['subnet'] = asndata[1]
         else:
@@ -297,7 +297,7 @@ class Bender(Tools):
             #Filter ports
             if line['port_dst'] in self.files['config.json']['ignorePorts']: return False,[None,None],[]
             #Subnet
-            base['subnet'] = f"{line['ip_dst']}/24" if IPAddress(line['ip_dst']).version == 4 else f"{line['ip_dst']}/64"
+            base['subnet'] = f"{line['ip_dst']}/24" if IPAddress(line['ip_dst']).version == 4 else f"{line['ip_dst']}/48"
         #Lets go bending
         return base,asndata,asnList
 
