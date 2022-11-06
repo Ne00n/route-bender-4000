@@ -11,7 +11,7 @@ class Tools:
     @staticmethod
     def mtrIP(target,options,asndata):
         orgTarget = target
-        if if IPAddress(target).version == 4 and asndata[0] is not None and options["multi"] == True:
+        if IPAddress(target).version == 4 and asndata[0] is not None and options["multi"] == True:
             logging.debug(f"ASN {asndata[0]} {target} multi")
             ips = [0,1,2,3,4,5,252,253,254]
             ip,prefix = options['subnet'].split("/")
