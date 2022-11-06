@@ -68,6 +68,7 @@ class Bender(Tools):
     def clear(self):
         print("Flushing Routing Table...")
         self.cmd('ip route flush table BENDER')
+        self.cmd('ip -6 route flush table BENDER')
 
     def show(self):
         print("Routing Table")
