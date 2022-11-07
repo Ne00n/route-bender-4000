@@ -59,11 +59,11 @@ class Bender(Tools):
                 self.cmd(["echo '"+node+" Node"+node+"' >> /etc/iproute2/rt_tables"])
             if "10.0.252."+lastByte[0][1] not in inetList:
                 self.cmd(f'ip addr add 10.0.252.{lastByte[0][1]}/32 dev lo')
-                self.cmd(f'ip -6 addr add fc10:0:252::{lastByte[0][1]}/128 dev lo')
+                self.cmd(f'ip -6 addr add fc10:252::{lastByte[0][1]}/128 dev lo')
                 self.cmd(f'ip rule add from 10.0.252.{lastByte[0][1]}/32 table Node{node}')
-                self.cmd(f'ip -6 rule add from fc10:0:252::{lastByte[0][1]}/128 table Node{node}')
+                self.cmd(f'ip -6 rule add from fc10:252::{lastByte[0][1]}/128 table Node{node}')
                 self.cmd(f'ip route add default via 10.0.251.{lastByte[0][1]} table Node{node}')
-                self.cmd(f'ip -6 route add default via fc00:0:251::{lastByte[0][1]} table Node{node}')
+                self.cmd(f'ip -6 route add default via fc10:251::{lastByte[0][1]} table Node{node}')
 
     def clear(self):
         print("Flushing Routing Table...")
@@ -174,7 +174,7 @@ class Bender(Tools):
                 dest = f"10.0.251.{latency[0][1]}"
                 Bender.cmd(f'ip route add {subnet} via {dest} dev vxlan1 table BENDER')
             else:
-                dest = f"fc00:0:251::{latency[0][1]}"
+                dest = f"fc10:251::{latency[0][1]}"
                 Bender.cmd(f'ip -6 route add {subnet} via {dest} dev vxlan1v6 table BENDER')
         return {"lbMap":lbMap,"success":True,"possible":True,"line":line,"subnet":subnet,"msg":f"Routed {line['ip_dst']} ({subnet}) via {dest} improved latency by {round(diff,1)}ms"}
         
@@ -195,11 +195,11 @@ class Bender(Tools):
                 logging.debug(f"Removing {entry} from history.json")
                 subnets.append(entry)
             #IPv6
-            routes = Bender.cmd(f'ip -6 route show table BENDER via fc00:0:251::{lastByte[0][1]}')[0]
+            routes = Bender.cmd(f'ip -6 route show table BENDER via fc10:251::{lastByte[0][1]}')[0]
             parsed = re.findall("^([a-z0-9:.\/]+)",routes, re.MULTILINE | re.DOTALL)
             for entry in parsed:
                 logging.debug(f"Removing {entry} from routing table")
-                Bender.cmd(f'ip -6 route del {entry} via fc00:0:251::{lastByte[0][1]} dev vxlan1v6 table BENDER')
+                Bender.cmd(f'ip -6 route del {entry} via fc10:251::{lastByte[0][1]} dev vxlan1v6 table BENDER')
                 logging.debug(f"Removing {entry} from history.json")
                 subnets.append(entry)
         return subnets
