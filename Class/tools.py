@@ -39,7 +39,7 @@ class Tools:
     @staticmethod
     def fpingSource(server,ip):
         lastByte = re.findall("^([0-9.]+)\.([0-9]+)",server, re.MULTILINE | re.DOTALL)
-        server = server if IPAddress(ip).version == 4 else server.replace("10.0.252.","fc10:0:252::")
+        server = server if IPAddress(ip).version == 4 else server.replace("10.0.252.","fc10:252::")
         if server == "direct":
             result = Tools.cmd("fping -c6 "+ip)[0]
         else:
