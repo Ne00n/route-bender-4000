@@ -289,7 +289,7 @@ class Bender(Tools):
                 base['subnet'] = f"{line['ip_dst']}/32" if IPAddress(line['ip_dst']).version == 4 else f"{line['ip_dst']}/128"
             elif base['route'] == "/24":
                 tmpIP = '.'.join(line['ip_dst'].split('.')[:-1])
-                base['subnet'] = f"{tmpIP}.0/24" if IPAddress(line['ip_dst']).version == 4 else str(ip_network(f'{line['ip_dst']}/128').supernet(new_prefix=48))
+                base['subnet'] = f"{tmpIP}.0/24" if IPAddress(line['ip_dst']).version == 4 else str(ip_network(f"{line['ip_dst']}/128").supernet(new_prefix=48))
             elif base['route'] == "dyn":
                 base['subnet'] = asndata[1]
         else:
