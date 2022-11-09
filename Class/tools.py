@@ -1,4 +1,5 @@
 import subprocess, logging, re
+from netaddr import IPAddress
 
 class Tools:
 
@@ -6,71 +7,44 @@ class Tools:
     def cmd(cmd):
         p = subprocess.run(cmd, stdin=None, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
         return [p.stdout.decode('utf-8'),p.stderr.decode('utf-8')]
-
-    @staticmethod
-    def isPrivate(ip):
-        #Source https://stackoverflow.com/questions/691045/how-do-you-determine-if-an-ip-address-is-private-in-python
-        priv_lo = re.compile("^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$")
-        priv_24 = re.compile("^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$")
-        priv_20 = re.compile("^192\.168\.\d{1,3}.\d{1,3}$")
-        priv_16 = re.compile("^172.(1[6-9]|2[0-9]|3[0-1]).[0-9]{1,3}.[0-9]{1,3}$")
-        return (priv_lo.match(ip) or priv_24.match(ip) or priv_20.match(ip) or priv_16.match(ip))
     
     @staticmethod
     def mtrIP(target,options,asndata):
         orgTarget = target
-        if asndata[0] is not None and options["multi"] == True:
+        if IPAddress(target).version == 4 and asndata[0] is not None and options["multi"] == True:
             logging.debug(f"ASN {asndata[0]} {target} multi")
             ips = [0,1,2,3,4,5,252,253,254]
             ip,prefix = options['subnet'].split("/")
-            target += " "+ip
             for entry in ips: target += f" {ip[:-1]}{entry}"
-        direct = Tools.cmd("fping -c6 "+target)
-        if asndata[0] is not None and options["multi"] == True:
-            results = direct[1].split("\n")
-            for result in results:
-                if "/0%" in result:
-                    target = re.findall("[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+",result, re.MULTILINE)[0]
-                    break
-            split = target.split(" ")
-            if len(split) > 1: target = orgTarget
-            latency = direct[0].split("\n")
-            direct[0] = ""
-            for result in latency:
-                if target in result: direct[0] += result+"\n"
-            tmp = direct[1].split("\n")
-            direct[1] = ""
-            for result in tmp:
-                if target in result: direct[1] +=result+"\n"
-        if '100%' in direct[1]:
-            logging.debug(f"{target} not reachable, trying to MTR")
-            result = Tools.cmd('mtr '+target+' --report --report-cycles 4 --no-dns')
-            parsed = re.findall("-- ([0-9.]+)",result[0], re.MULTILINE)
-            for run in range(1,3):
-                lastIP = parsed[len(parsed) - run]
-                if Tools.isPrivate(lastIP):
-                    logging.debug(f"{lastIP} is private, skipping")
-                    return False,False
-                if lastIP != "???":
-                    direct = Tools.cmd("fping -c6 "+lastIP)
-                if '100%' in direct[1]:
-                    logging.debug(f"{target} ({lastIP}) not reachable")
-                else:
-                    logging.info(f"Found reachable IP {lastIP} for {target}")
-                    return lastIP,direct
-                if run == 2:
-                    logging.debug(f"Could not find reachable IP for {target}")
-                    return False,False
-        return target,direct
+        fping = Tools.cmd(f"fping -c3 {target}")
+        results = fping[1].split("\n")
+        for result in results: 
+            if "/0%" in result: return re.findall("^[a-z0-9.:]+",result, re.MULTILINE)[0],fping[0]
+        logging.debug(f"{orgTarget} not reachable, trying to MTR")
+        mtr = Tools.cmd('mtr '+orgTarget+' --report --report-cycles 3 --no-dns')
+        ips = re.findall("-- ([0-9a-z.:]+)",mtr[0], re.MULTILINE)
+        ips = ips if len(ips) < 4 else ips[len(ips) -3:]
+        for ip in list(ips): 
+            if IPAddress(ip).is_private(): ips.remove(ip)
+        if not ips: 
+            logging.debug(f"Could not find reachable IP for {orgTarget}")
+            return "0.0.0.0",""
+        fping = Tools.cmd(f"fping -c3 {' '.join(ips)}")
+        results = fping[1].split("\n")
+        for result in results: 
+            if "/0%" in result: return re.findall("^[a-z0-9.:]+",result, re.MULTILINE)[0],fping[0]
+        logging.debug(f"Could not find reachable IP for {orgTarget}")
+        return "0.0.0.0",""
 
     @staticmethod
     def fpingSource(server,ip):
         lastByte = re.findall("^([0-9.]+)\.([0-9]+)",server, re.MULTILINE | re.DOTALL)
+        server = server if IPAddress(ip).version == 4 else server.replace("10.0.252.","fc10:252::")
         if server == "direct":
             result = Tools.cmd("fping -c6 "+ip)[0]
         else:
             result = Tools.cmd("fping -c6 "+ip+" -S "+server)[0]
-        parsed = re.findall("([0-9.]+).*?([0-9]+.[0-9]).*?([0-9])% loss",result, re.MULTILINE)
+        parsed = re.findall("([a-z0-9:.]+).*?([0-9]+.[0-9]+|NaN avg).*?([0-9]+)% loss",result, re.MULTILINE)
         return parsed,result,lastByte
 
     @staticmethod
@@ -81,14 +55,15 @@ class Tools:
     @staticmethod
     def getAvrg(fping):
         latency = []
-        parsed = re.findall("([0-9.]+).*?([0-9]+.[0-9]|NaN avg).*?([0-9]+)% loss",fping, re.MULTILINE)
-        del parsed[0] #drop the first ping result
+        parsed = re.findall("([a-z0-9:.]+).*?([0-9]+.[0-9]+|NaN avg).*?([0-9]+)% loss",fping, re.MULTILINE)
         for ip,ms,loss in parsed:
-            if ms == "NaN avg": ms = 65000
+            if ms == "NaN avg": continue
             latency.append(float(ms))
-        latency.sort()
-        if len(latency) < 5: return 5000
-        return round((float(latency[0]) + float(latency[1]) + float(latency[2])) / 3,2)
+        if len(latency) > 1: del latency[0] #drop the first ping result
+        if not latency: return 65000
+        total = 0
+        for ping in latency: total += ping
+        return round(total / len(latency),2)
 
     @staticmethod
     def checkASNGroup(files,asn):

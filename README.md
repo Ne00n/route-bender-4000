@@ -31,7 +31,9 @@ echo '333 BENDER' >> /etc/iproute2/rt_tables
 cp config/pmacctd.conf /etc/pmacct/
 cp config/nodes.example.json config/nodes.json
 cp config/config.example.json config/config.json
+ip6tables -t nat -A POSTROUTING -o vxlan1v6 -j MASQUERADE
 iptables -t nat -A POSTROUTING -o vxlan1 -j MASQUERADE
+ip6tables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
 iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
 ```
 Configure config.json based on your needs + edit nodes.json
@@ -62,7 +64,7 @@ systemctl start pmacctd
 
 **Update asn data**
 ```
-pyasn_util_download.py --latest && pyasn_util_convert.py --single rib.202* asn.dat
+pyasn_util_download.py --latestv46 && pyasn_util_convert.py --single rib.202* asn.dat
 ```
 
 **Debugging**<br />
