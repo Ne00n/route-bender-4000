@@ -298,7 +298,7 @@ class Bender(Tools):
             #Filter ports
             if line['port_dst'] in self.files['config.json']['ignorePorts']: return False,[None,None],[]
             #Subnet
-            base['subnet'] = f"{line['ip_dst']}/24" if IPAddress(line['ip_dst']).version == 4 else f"{line['ip_dst']}/48"
+            base['subnet'] = f"{line['ip_dst']}/24" if IPAddress(line['ip_dst']).version == 4 else str(ip_network(f"{line['ip_dst']}/128").supernet(new_prefix=48))
         #Lets go bending
         return base,asndata,asnList
 
