@@ -373,7 +373,7 @@ class Bender(Tools):
                         vxlan = "vxlan1" if IPAddress(data['ip']).version == 4 else "vxlan1v6"
                         self.cmd(f'ip route del {entry} via {node} dev {vxlan} table BENDER')
                         #Remove from history.json
-                        logging.info(f"Removing {data['subnet']} from history.json")
+                        logging.debug(f"Removing {data['subnet']} from history.json")
                         if entry in self.files['history.json']: del self.files['history.json'][data['subnet']]
                         break
             threads.append({"subnet":options['subnet'],"line":line,"options":options,"asndata":asndata,"files":self.files})
