@@ -16,8 +16,8 @@ class Tools:
             ips4,ips6 = [0,1,2,3,4,5,252,253,254],['','1']
             ip,prefix = options['subnet'].split("/")
             ips = ips4 if IPAddress(target).version == 4 else ips6
-            for entry in ips: 
-                host = f" {ip[:-1]}{entry}" if IPAddress(target).version == 4 else f" {ip}{entry}"
+            for entry in ips:
+                host = f" {ip[:-1]}{entry}" if IPAddress(ip).version == 4 else f" {ip}{entry}"
                 target += host
         logging.debug(f"MTR fping running to targets: {target}")
         fping = Tools.cmd(f"fping -c3 {target}")
