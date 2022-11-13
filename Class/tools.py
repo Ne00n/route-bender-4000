@@ -11,11 +11,15 @@ class Tools:
     @staticmethod
     def mtrIP(target,options,asndata):
         orgTarget = target
-        if IPAddress(target).version == 4 and asndata[0] is not None and options["multi"] == True:
+        if asndata[0] is not None and options["multi"] == True and options['route'] != "/32":
             logging.debug(f"ASN {asndata[0]} {target} multi")
-            ips = [0,1,2,3,4,5,252,253,254]
+            ips4,ips6 = [0,1,2,3,4,5,252,253,254],['','1']
             ip,prefix = options['subnet'].split("/")
-            for entry in ips: target += f" {ip[:-1]}{entry}"
+            ips = ips4 if IPAddress(target).version == 4 else ips6
+            for entry in ips: 
+                host = f" {ip[:-1]}{entry}" if IPAddress(target).version == 4 else f" {ip}{entry}"
+                target += host
+        logging.debug(f"MTR fping running to targets: {target}")
         fping = Tools.cmd(f"fping -c3 {target}")
         results = fping[1].split("\n")
         for result in results: 
