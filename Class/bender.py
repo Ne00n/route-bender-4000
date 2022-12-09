@@ -209,9 +209,9 @@ class Bender(Tools):
         asndata = self.asndb.lookup(ip)
         if asndata[0] is None:
             asndata = {0:"0",1:"0.0.0.0/0"}
-            options = {"force":False,"multi":False}
+            options = {"force":False,"multi":False,"route":"/32"}
         else:
-            options = {"force":False,"multi":True}
+            options = {"force":False,"multi":True,"route":"/32"}
         print("Running fping")
         pingable,srcFping = self.mtrIP(ip,options,asndata)
         if pingable == "0.0.0.0": exit()
