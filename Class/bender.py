@@ -182,7 +182,7 @@ class Bender(Tools):
     @staticmethod
     def checkNode(server):
         lastByte = re.findall("^([0-9.]+)\.([0-9]+)",server, re.MULTILINE | re.DOTALL)
-        direct = Bender.cmd(f'fping -c3 10.0.251.{lastByte[0][1]} fc10:251::{lastByte[0][1]}')[1]
+        direct = Bender.cmd('fping -c3 10.0.251.'+lastByte[0][1])[1]
         subnets = []
         if '100%' in direct:
             logging.debug(direct)
