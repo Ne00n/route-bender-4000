@@ -255,7 +255,7 @@ class Bender(Tools):
             #If the re-check planned in more than 30 minutes, reschedule
             if subnet in activeSubnets and data['expiry'] > deadline:
                 logging.debug(f"Rescheduled {subnet}")
-                self.files['history.json'][subnet]data['expiry'] = deadline
+                self.files['history.json'][subnet]['expiry'] = deadline
             #First make sure the connection is idle
             if subnet in activeSubnets: continue
             #Cooldown check
