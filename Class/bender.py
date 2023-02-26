@@ -250,9 +250,9 @@ class Bender(Tools):
     def history(self,activeSubnets):
         recheck = []
         for subnet, data in list(self.files['history.json'].items()):
-            #Reduce re-check of active connections to 30 minutes
-            deadline = int(datetime.now().timestamp()) + 1800
-            #If the re-check planned in more than 30 minutes, reschedule
+            #Reduce re-check of active connections to 15 minutes
+            deadline = int(datetime.now().timestamp()) + 900
+            #If the re-check planned in more than 15 minutes, reschedule
             if subnet in activeSubnets and data['expiry'] > deadline:
                 logging.debug(f"Rescheduled {subnet}")
                 self.files['history.json'][subnet]['expiry'] = deadline
