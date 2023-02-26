@@ -397,8 +397,8 @@ class Bender(Tools):
                 #wait 4-8 hours before re-check, latency difference wasn't high enough or direct was better
                 self.files['history.json'][result['subnet']] = {'ip':result['line']['ip_dst'],'port':result['line']['port_dst'],'expiry':int(datetime.now().timestamp()) + random.randint(14400, 28800)}
             elif result['possible'] == False:
-                #wait 8-12 hours before re-check, since we could not optimize / no pingable ip
-                self.files['history.json'][result['subnet']] = {'ip':result['line']['ip_dst'],'port':result['line']['port_dst'],'expiry':int(datetime.now().timestamp()) + random.randint(28800, 43200)}
+                #wait 12-24 hours before re-check, since we could not optimize / no pingable ip
+                self.files['history.json'][result['subnet']] = {'ip':result['line']['ip_dst'],'port':result['line']['port_dst'],'expiry':int(datetime.now().timestamp()) + random.randint(43200, 86400)}
             else:
                 #wait 2-6 hours before re-check
                 self.files['history.json'][result['subnet']] = {'ip':result['line']['ip_dst'],'port':result['line']['port_dst'],'expiry':int(datetime.now().timestamp()) + random.randint(7200, 21600)}
