@@ -187,7 +187,7 @@ class Bender(Tools):
         isDown = '100%' in direct
         if isDown:
             logging.debug(direct)
-            logging.warning(f"10.0.251.{lastByte[0][1]} is down, removing routes")
+            logging.warning(f"10.0.251.{lastByte[0][1]} is down")
             #IPv4
             routes = Bender.cmd('ip route show table BENDER via 10.0.251.'+lastByte[0][1])[0]
             parsedIPv4 = re.findall("^([0-9.\/]+)",routes, re.MULTILINE | re.DOTALL)
