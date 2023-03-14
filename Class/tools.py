@@ -6,7 +6,7 @@ class Tools:
 
     path = os.path.dirname(os.path.realpath(__file__))
     path = path.replace("Class","Plugins")
-    plugins = os.listdir("Plugins")
+    plugins = os.listdir(path)
     pluginsToLoad = []
     for filename in plugins:
         if not filename.endswith(".py"): continue
