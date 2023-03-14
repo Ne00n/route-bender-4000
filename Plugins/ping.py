@@ -13,7 +13,7 @@ class ping():
             req = requests.get(f"https://ping.serv.app/{ip}")
             if req.status_code == 200:
                 data = req.json()
-                return data['ips']
+                if data['next'] == False: return data['ips']
             return False
         except Exception as err:
             return False
