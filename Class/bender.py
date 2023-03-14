@@ -183,27 +183,18 @@ class Bender(Tools):
     def checkNode(server):
         lastByte = re.findall("^([0-9.]+)\.([0-9]+)",server, re.MULTILINE | re.DOTALL)
         direct = Bender.cmd('fping -c3 10.0.251.'+lastByte[0][1])[1]
-        subnets = []
-        if '100%' in direct:
+        subnets,parsedIPv4,parsedIPv6 = [],[],[]
+        isDown = '100%' in direct
+        if isDown:
             logging.debug(direct)
             logging.warning(f"10.0.251.{lastByte[0][1]} is down, removing routes")
             #IPv4
             routes = Bender.cmd('ip route show table BENDER via 10.0.251.'+lastByte[0][1])[0]
-            parsed = re.findall("^([0-9.\/]+)",routes, re.MULTILINE | re.DOTALL)
-            for entry in parsed:
-                logging.debug(f"Removing {entry} from routing table")
-                Bender.cmd(f'ip route del {entry} via 10.0.251.{lastByte[0][1]} dev vxlan1 table BENDER')
-                logging.debug(f"Removing {entry} from history.json")
-                subnets.append(entry)
+            parsedIPv4 = re.findall("^([0-9.\/]+)",routes, re.MULTILINE | re.DOTALL)
             #IPv6
             routes = Bender.cmd(f'ip -6 route show table BENDER via fc10:251::{lastByte[0][1]}')[0]
-            parsed = re.findall("^([a-z0-9:.\/]+)",routes, re.MULTILINE | re.DOTALL)
-            for entry in parsed:
-                logging.debug(f"Removing {entry} from routing table")
-                Bender.cmd(f'ip -6 route del {entry} via fc10:251::{lastByte[0][1]} dev vxlan1v6 table BENDER')
-                logging.debug(f"Removing {entry} from history.json")
-                subnets.append(entry)
-        return subnets
+            parsedIPv6 = re.findall("^([a-z0-9:.\/]+)",routes, re.MULTILINE | re.DOTALL)
+        return {"isDown":isDown,"lastByte":lastByte[0][1],"parsed":parsedIPv4},{"isDown":isDown,"lastByte":lastByte[0][1],"parsed":parsedIPv6}
 
     def debug(self,ip):
         asndata = self.asndb.lookup(ip)
@@ -419,12 +410,22 @@ class Bender(Tools):
         #process results
         for response in results:
             #when the list is empty = online 
-            if not response: 
-                online += 1
-            else:
-                for subnet in response:
-                    if subnet in self.files['history.json']: del self.files['history.json'][subnet]
-        logging.debug(f"Status {online}/{len(nodeThreads)} online")
+            if response[0]['isDown'] == False: online += 1
+        percentage = (100 / len(nodeThreads)) * online
+        logging.debug(f"Status {online}/{len(nodeThreads)} online, {percentage}%")
+        #failsafe in case we lose internet connectivity
+        if percentage > 50:
+            for response in results:
+                for index, protocol in enumerate(response):
+                    lastByte = protocol['lastByte']
+                    if protocol['parsed']: 
+                        for entry in protocol['parsed']:
+                            logging.debug(f"Removing {entry} from routing table")
+                            via = "10.0.251." if index == 0 else "fc10:251::"
+                            prot = "-4" if index == 0 else "-6"
+                            Bender.cmd(f'ip {prot} route del {entry} via {via}{lastByte} dev vxlan1 table BENDER')
+                            logging.debug(f"Removing {entry} from history.json")
+                            if entry in self.files['history.json']: del self.files['history.json'][entry]
         #updating json files
         saving = ['loadBalancing.json','history.json']
         for entry in saving:
