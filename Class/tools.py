@@ -1,12 +1,44 @@
-import subprocess, logging, re
+import subprocess, logging, re, os
 from netaddr import IPAddress
+import importlib.util
 
 class Tools:
+
+    path = os.path.dirname(os.path.realpath(__file__))
+    path = path.replace("Class","Plugins")
+    plugins = os.listdir("Plugins")
+    pluginsToLoad = []
+    for filename in plugins:
+        if not filename.endswith(".py"): continue
+        plugin = filename.replace(".py","")
+        pluginsToLoad.append(plugin)
+    plugins = {}
+    for plugin in pluginsToLoad:
+        spec = importlib.util.spec_from_file_location(plugin, f"{path}/{plugin}.py")
+        tmpPlugin = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(tmpPlugin)
+        plugins[plugin] = tmpPlugin
 
     @staticmethod
     def cmd(cmd):
         p = subprocess.run(cmd, stdin=None, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
         return [p.stdout.decode('utf-8'),p.stderr.decode('utf-8')]
+
+    @staticmethod
+    def hook(event,target=""):
+        for plugin in Tools.plugins:
+            tmpPlugin = getattr(Tools.plugins[plugin], plugin)
+            result = getattr(tmpPlugin, event)(tmpPlugin,target)
+            return result
+        return False
+
+    @staticmethod
+    def fping(target):
+        fping = Tools.cmd(f"fping -c3 {target}")
+        results = fping[1].split("\n")
+        for result in results:
+            if "/0%" in result: return re.findall("^[a-z0-9.:]+",result, re.MULTILINE)[0],fping[0]
+        return False,False
     
     @staticmethod
     def mtrIP(target,options,asndata):
@@ -20,10 +52,13 @@ class Tools:
                 host = f" {ip[:-1]}{entry}" if IPAddress(ip).version == 4 else f" {ip}{entry}"
                 target += host
         logging.debug(f"MTR fping running to targets: {target}")
-        fping = Tools.cmd(f"fping -c3 {target}")
-        results = fping[1].split("\n")
-        for result in results: 
-            if "/0%" in result: return re.findall("^[a-z0-9.:]+",result, re.MULTILINE)[0],fping[0]
+        destIP,fping = Tools.fping(target)
+        if destIP: return destIP,fping
+        logging.debug(f"{orgTarget} not reachable, asking plugins")
+        data = Tools.hook('unreachable',orgTarget)
+        if data:
+            destIP,fping = Tools.fping(' '.join(data))
+            if destIP: return destIP,fping
         logging.debug(f"{orgTarget} not reachable, trying to MTR")
         mtr = Tools.cmd('mtr '+orgTarget+' --report --report-cycles 3 --no-dns')
         ips = re.findall("-- ([0-9a-z.:]+)",mtr[0], re.MULTILINE)
