@@ -10,7 +10,7 @@ class ping():
 
     def unreachable(self,ip):
         try:
-            req = requests.get(f"https://ping.serv.app/{ip}")
+            req = requests.get(f"https://ping.serv.app/{ip}", timeout=(3, 3))
             if req.status_code == 200:
                 data = req.json()
                 if data['next'] == False: return data['ips']
