@@ -341,8 +341,13 @@ class Bender(Tools):
                 continue
             #Limit of current checks, to keep cpu load in okay levels to prevent lags
             if len(threads) <= self.files['config.json']['threads']:
-                threads.append({"subnet":options['subnet'],"line":line,"options":options,"asndata":asndata,"files":self.files})
-                logging.info(f"Analyzing {line['ip_dst']}")
+                if self.files['config.json']['lazy']:
+                    if options['subnet'] not in self.files['history.json']: self.files['history.json'][options['subnet']] = {}
+                    self.files['history.json'][options['subnet']] = {'ip':line['ip_dst'],'port':line['port_dst'],'expiry':int(datetime.now().timestamp() + 900)}
+                    logging.info(f"Lazy {line['ip_dst']}")
+                else:
+                    threads.append({"subnet":options['subnet'],"line":line,"options":options,"asndata":asndata,"files":self.files})
+                    logging.info(f"Analyzing {line['ip_dst']}")
         history = self.history(activeSubnets)
         logging.debug("Checking history")
         for data in history:
