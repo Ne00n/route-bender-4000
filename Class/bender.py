@@ -21,7 +21,7 @@ class Bender(Tools):
         stream_handler.setLevel(levels[level])
         logging.basicConfig(format='%(asctime)s %(levelname)s %(message)s',datefmt='%H:%M:%S',level=levels[level],handlers=[RotatingFileHandler(maxBytes=10000000,backupCount=5,filename=f"{path}/logs/bender.log"),stream_handler])
         #Files
-        filesToLoad = {path+'/config/nodes.json':True,path+'/config/config.json':True,'/tmp/pmacct_avg.json':True,path+'/data/loadBalancing.json':False,path+'/data/history.json':False}
+        filesToLoad = {path+'/config/nodes.json':True,path+'/config/config.json':True,'/tmp/pmacct_avg.json':True,path+'/data/loadBalancing.json':False,path+'/data/history.json':False,path+'/data/backlog.json':False}
         self.files = {}
         os.nice(20)
         if load:
@@ -427,7 +427,7 @@ class Bender(Tools):
                             logging.debug(f"Removing {entry} from history.json")
                             if entry in self.files['history.json']: del self.files['history.json'][entry]
         #updating json files
-        saving = ['loadBalancing.json','history.json']
+        saving = ['loadBalancing.json','history.json','backlog.json']
         for entry in saving:
             logging.debug(f"Saving {entry}")
             with open(self.path+f'/data/{entry}', 'w') as f:
