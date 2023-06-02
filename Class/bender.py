@@ -202,7 +202,7 @@ class Bender(Tools):
             asndata = {0:"0",1:"0.0.0.0/0"}
             options = {"force":False,"multi":False,"route":"/32"}
         else:
-            options = {"force":False,"multi":True,"route":"/32"}
+            options = {"force":False,"multi":True,"route":asndata[1]}
         print(f"Using options {options}")
         print("Running fping")
         pingable,srcFping = self.mtrIP(ip,options,asndata)
