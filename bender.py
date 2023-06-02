@@ -22,7 +22,7 @@ elif sys.argv[1] == "optimize":
     bender = Bender(path)
     bender.optimize(sys.argv[2],sys.argv[3])
 elif sys.argv[1] == "debug":
-    bender = Bender(path)
+    bender = Bender(path,True,"debug")
     bender.debug(sys.argv[2])
 else:
     print("show, clear, debug, optimize, level, stats")
