@@ -345,7 +345,7 @@ class Bender(Tools):
                 options = options.copy()
                 if self.files['config.json']['lazy']:
                     if options['subnet'] not in self.files['history.json']: self.files['history.json'][options['subnet']] = {}
-                    self.files['history.json'][options['subnet']] = {'ip':line['ip_dst'],'port':line['port_dst'],'expiry':int(datetime.now().timestamp() + 900)}
+                    self.files['history.json'][options['subnet']] = {'ip':line['ip_dst'],'port':line['port_dst'],'expiry':int(datetime.now().timestamp() + 300)}
                     logging.info(f"Lazy {line['ip_dst']}")
                 else:
                     threads.append({"subnet":options['subnet'],"line":line,"options":options,"asndata":asndata,"files":self.files})
