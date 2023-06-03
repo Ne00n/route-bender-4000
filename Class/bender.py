@@ -21,7 +21,7 @@ class Bender(Tools):
         stream_handler.setLevel(levels[level])
         logging.basicConfig(format='%(asctime)s %(levelname)s %(message)s',datefmt='%H:%M:%S',level=levels[level],handlers=[RotatingFileHandler(maxBytes=10000000,backupCount=5,filename=f"{path}/logs/bender.log"),stream_handler])
         #Files
-        filesToLoad = {path+'/config/nodes.json':True,path+'/config/config.json':True,'/tmp/pmacct_avg.json':True,path+'/data/loadBalancing.json':False,path+'/data/history.json':False}
+        filesToLoad = {path+'/config/nodes.json':True,path+'/config/config.json':True,'/tmp/pmacct_avg.json':True,path+'/data/loadBalancing.json':False,path+'/data/history.json':False,path+'/data/status.json':False}
         self.files = {}
         os.nice(20)
         if load:
@@ -426,17 +426,24 @@ class Bender(Tools):
             for response in results:
                 for index, protocol in enumerate(response):
                     lastByte = protocol['lastByte']
+                    if not lastByte in self.files['status.json']: self.files['status.json'][lastByte] = {"offline":0}
                     if protocol['parsed']: 
                         for entry in protocol['parsed']:
-                            logging.debug(f"Removing {entry} from routing table")
-                            via = "10.0.251." if index == 0 else "fc10:251::"
-                            prot = "-4" if index == 0 else "-6"
-                            Bender.cmd(f'ip {prot} route del {entry} via {via}{lastByte} dev vxlan1 table BENDER')
-                            if entry in self.files['history.json']: 
-                                logging.debug(f"Removing {entry} from history.json")
-                                del self.files['history.json'][entry]
+                            #wait for the second confirmation / run before we pull any routes
+                            if self.files['status.json'][lastByte]['offline']:
+                                logging.debug(f"Removing {entry} from routing table")
+                                via = "10.0.251." if index == 0 else "fc10:251::"
+                                prot = "-4" if index == 0 else "-6"
+                                Bender.cmd(f'ip {prot} route del {entry} via {via}{lastByte} dev vxlan1 table BENDER')
+                                if entry in self.files['history.json']: 
+                                    logging.debug(f"Removing {entry} from history.json")
+                                    del self.files['history.json'][entry]
+                    if response[0]['isDown']:
+                        self.files['status.json'][lastByte]['offline'] = 1
+                    else:
+                        self.files['status.json'][lastByte]['offline'] = 0
         #updating json files
-        saving = ['loadBalancing.json','history.json']
+        saving = ['loadBalancing.json','history.json','status.json']
         for entry in saving:
             logging.debug(f"Saving {entry}")
             with open(self.path+f'/data/{entry}', 'w') as f:
