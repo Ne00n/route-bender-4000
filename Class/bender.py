@@ -432,8 +432,9 @@ class Bender(Tools):
                             via = "10.0.251." if index == 0 else "fc10:251::"
                             prot = "-4" if index == 0 else "-6"
                             Bender.cmd(f'ip {prot} route del {entry} via {via}{lastByte} dev vxlan1 table BENDER')
-                            logging.debug(f"Removing {entry} from history.json")
-                            if entry in self.files['history.json']: del self.files['history.json'][entry]
+                            if entry in self.files['history.json']: 
+                                logging.debug(f"Removing {entry} from history.json")
+                                del self.files['history.json'][entry]
         #updating json files
         saving = ['loadBalancing.json','history.json']
         for entry in saving:
