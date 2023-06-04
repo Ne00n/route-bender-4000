@@ -393,17 +393,21 @@ class Bender(Tools):
         pool.shutdown(wait=True)
         #process results
         for result in results:
+            line = result['line']
             logging.info(result['msg'])
             if result['subnet'] not in self.files['history.json']: self.files['history.json'][result['subnet']] = {}
             if result['possible'] == True and result['success'] == False:
                 #wait 4-8 hours before re-check, latency difference wasn't high enough or direct was better
-                self.files['history.json'][result['subnet']] = {'ip':result['line']['ip_dst'],'port':result['line']['port_dst'],'expiry':int(datetime.now().timestamp()) + random.randint(14400, 28800)}
+                expiry = int(datetime.now().timestamp()) + random.randint(14400, 28800)
+                self.files['history.json'][result['subnet']] = {'ip':line['ip_dst'],'port':line['port_dst'],'expiry':expiry}
             elif result['possible'] == False:
                 #wait 12-24 hours before re-check, since we could not optimize / no pingable ip
-                self.files['history.json'][result['subnet']] = {'ip':result['line']['ip_dst'],'port':result['line']['port_dst'],'expiry':int(datetime.now().timestamp()) + random.randint(43200, 86400)}
+                expiry = int(datetime.now().timestamp()) + random.randint(43200, 86400)
+                self.files['history.json'][result['subnet']] = {'ip':line['ip_dst'],'port':line['port_dst'],'expiry':expiry}
             else:
                 #wait 2-6 hours before re-check
-                self.files['history.json'][result['subnet']] = {'ip':result['line']['ip_dst'],'port':result['line']['port_dst'],'expiry':int(datetime.now().timestamp()) + random.randint(7200, 21600)}
+                expiry = int(datetime.now().timestamp()) + random.randint(7200, 21600)
+                self.files['history.json'][result['subnet']] = {'ip':line['ip_dst'],'port':line['port_dst'],'expiry':expiry}
             #loadbalancing
             if result['lbMap']:
                 for asn,node in result['lbMap'].items():
