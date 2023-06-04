@@ -253,6 +253,7 @@ class Bender(Tools):
             #Cooldown check
             if data['expiry'] > int(datetime.now().timestamp()): continue
             recheck.append({"subnet":subnet,"ip":data['ip'],"port":data['port'],'bytes':data['bytes'],'lastBytes':data['lastBytes']})
+        recheck = sorted(recheck, key=lambda data: int(data['bytes']), reverse=True) 
         return recheck
 
     def asnLookUp(self,asnList,line):
