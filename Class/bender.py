@@ -345,7 +345,7 @@ class Bender(Tools):
                 options = options.copy()
                 if self.files['config.json']['lazy']:
                     if options['subnet'] not in self.files['history.json']: self.files['history.json'][options['subnet']] = {}
-                    self.files['history.json'][options['subnet']] = {'ip':line['ip_dst'],'port':line['port_dst'],'expiry':int(datetime.now().timestamp() + 300)}
+                    self.files['history.json'][options['subnet']] = {'ip':line['ip_dst'],'port':line['port_dst'],'bytes':line['bytes'],'expiry':int(datetime.now().timestamp() + 300)}
                     logging.info(f"Lazy {line['ip_dst']}")
                 else:
                     threads.append({"subnet":options['subnet'],"line":line,"options":options,"asndata":asndata,"files":self.files})
@@ -359,7 +359,7 @@ class Bender(Tools):
             #Check if we already hit the current checks limit
             if len(threads) > self.files['config.json']['threads']: break
             #Filter ASN if loadBalancing... is disabled/enabled
-            line = {"ip_dst":data['ip'],"port_dst":data['port']}
+            line = {"ip_dst":data['ip'],"port_dst":data['port'],"bytes":data['bytes']}
             options,asndata,asnList = self.asnLookUp(asnList,line)
             if options == False: continue
             #Check for existing route
@@ -399,15 +399,15 @@ class Bender(Tools):
             if result['possible'] == True and result['success'] == False:
                 #wait 4-8 hours before re-check, latency difference wasn't high enough or direct was better
                 expiry = int(datetime.now().timestamp()) + random.randint(14400, 28800)
-                self.files['history.json'][result['subnet']] = {'ip':line['ip_dst'],'port':line['port_dst'],'expiry':expiry}
+                self.files['history.json'][result['subnet']] = {'ip':line['ip_dst'],'port':line['port_dst'],'bytes':line['bytes'],'expiry':expiry}
             elif result['possible'] == False:
                 #wait 12-24 hours before re-check, since we could not optimize / no pingable ip
                 expiry = int(datetime.now().timestamp()) + random.randint(43200, 86400)
-                self.files['history.json'][result['subnet']] = {'ip':line['ip_dst'],'port':line['port_dst'],'expiry':expiry}
+                self.files['history.json'][result['subnet']] = {'ip':line['ip_dst'],'port':line['port_dst'],'bytes':line['bytes'],'expiry':expiry}
             else:
                 #wait 2-6 hours before re-check
                 expiry = int(datetime.now().timestamp()) + random.randint(7200, 21600)
-                self.files['history.json'][result['subnet']] = {'ip':line['ip_dst'],'port':line['port_dst'],'expiry':expiry}
+                self.files['history.json'][result['subnet']] = {'ip':line['ip_dst'],'port':line['port_dst'],,'expiry':expiry}
             #loadbalancing
             if result['lbMap']:
                 for asn,node in result['lbMap'].items():
