@@ -409,7 +409,7 @@ class Bender(Tools):
             else:
                 #wait 2-6 hours before re-check
                 expiry = int(datetime.now().timestamp()) + random.randint(7200, 21600)
-                self.files['history.json'][result['subnet']] = {'ip':line['ip_dst'],'port':line['port_dst'],'expiry':expiry}
+                self.files['history.json'][result['subnet']] = {'ip':line['ip_dst'],'port':line['port_dst'],'bytes':line['bytes'],'expiry':expiry}
             #loadbalancing
             if result['lbMap']:
                 for asn,node in result['lbMap'].items():
