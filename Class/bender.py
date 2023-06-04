@@ -333,9 +333,15 @@ class Bender(Tools):
             activeSubnets.append(options['subnet'])
             #Skip if already in history
             if options['subnet'] in self.files['history.json']: 
-                insertedUnix = datetime.strptime(line['stamp_inserted'], "%Y-%m-%d %H:%M:%S").timestamp()
                 updatedUnix = datetime.strptime(line['stamp_updated'], "%Y-%m-%d %H:%M:%S").timestamp()
-
+                current = time.time()
+                #reset lastBytes if stamp_updated is older than 60s
+                if updatedUnix + 60 > current: 
+                    self.files['history.json'][options['subnet']]['lastBytes'] = 0
+                else:
+                    self.files['history.json'][options['subnet']]['bytes'] += line['bytes'] - self.files['history.json'][options['subnet']]['lastBytes']
+                    #update lastBytes
+                    self.files['history.json'][options['subnet']]['lastBytes'] = line['bytes']
                 continue
             #Skip if listed in ignoreSubnets
             if options['subnet'] in self.files['config.json']['ignoreSubnets']: continue
