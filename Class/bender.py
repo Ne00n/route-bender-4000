@@ -353,6 +353,8 @@ class Bender(Tools):
         history = self.history(activeSubnets)
         logging.debug("Checking history")
         logging.debug(f"History Backlog {len(history)}")
+        if len(history) > int(self.files['config.json']['threads']) * 5:
+            logging.warning(f"Current history backlog {len(history)}")
         for data in history:
             #Check if we already hit the current checks limit
             if len(threads) > self.files['config.json']['threads']: break
