@@ -352,6 +352,7 @@ class Bender(Tools):
                     logging.info(f"Analyzing {line['ip_dst']}")
         history = self.history(activeSubnets)
         logging.debug("Checking history")
+        logging.debug(f"History Backlog {len(history)}")
         for data in history:
             #Check if we already hit the current checks limit
             if len(threads) > self.files['config.json']['threads']: break
