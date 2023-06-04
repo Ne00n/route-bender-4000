@@ -252,7 +252,7 @@ class Bender(Tools):
             if subnet in activeSubnets: continue
             #Cooldown check
             if data['expiry'] > int(datetime.now().timestamp()): continue
-            recheck.append({"subnet":subnet,"ip":data['ip'],"port":data['port']})
+            recheck.append({"subnet":subnet,"ip":data['ip'],"port":data['port'],'bytes':data['bytes'],'lastBytes':data['lastBytes']})
         return recheck
 
     def asnLookUp(self,asnList,line):
