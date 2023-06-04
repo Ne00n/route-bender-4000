@@ -358,6 +358,7 @@ class Bender(Tools):
                     self.files['history.json'][options['subnet']] = {'ip':line['ip_dst'],'port':line['port_dst'],'bytes':line['bytes'],'lastBytes':line['bytes'],'expiry':int(datetime.now().timestamp() + 300)}
                     logging.info(f"Lazy {line['ip_dst']}")
                 else:
+                    line['lastBytes'] = 0
                     threads.append({"subnet":options['subnet'],"line":line,"options":options,"asndata":asndata,"files":self.files})
                     logging.info(f"Analyzing {line['ip_dst']}")
         history = self.history(activeSubnets)
