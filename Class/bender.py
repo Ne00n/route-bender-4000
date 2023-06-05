@@ -450,6 +450,7 @@ class Bender(Tools):
                         for entry in protocol['parsed']:
                             #wait for the second confirmation / run before we pull any routes
                             if self.files['status.json'][lastByte]['offline']:
+                                logging.WARNING(f"Pulling {len(protocol['parsed'])} routes")
                                 logging.debug(f"Removing {entry} from routing table")
                                 via = "10.0.251." if index == 0 else "fc10:251::"
                                 prot = "-4" if index == 0 else "-6"
