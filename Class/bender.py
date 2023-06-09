@@ -21,7 +21,7 @@ class Bender(Tools):
         stream_handler.setLevel(levels[level])
         logging.basicConfig(format='%(asctime)s %(levelname)s %(message)s',datefmt='%H:%M:%S',level=levels[level],handlers=[RotatingFileHandler(maxBytes=10000000,backupCount=5,filename=f"{path}/logs/bender.log"),stream_handler])
         #Files
-        filesToLoad = {path+'/config/nodes.json':True,path+'/config/config.json':True,'/tmp/pmacct_avg.json':True,path+'/data/loadBalancing.json':False,path+'/data/history.json':False}
+        filesToLoad = {path+'/config/nodes.json':True,path+'/config/config.json':True,'/tmp/pmacct_avg.json':True,path+'/data/loadBalancing.json':False,path+'/data/history.json':False,path+'/data/status.json':False}
         self.files = {}
         os.nice(20)
         if load:
@@ -252,7 +252,8 @@ class Bender(Tools):
             if subnet in activeSubnets: continue
             #Cooldown check
             if data['expiry'] > int(datetime.now().timestamp()): continue
-            recheck.append({"subnet":subnet,"ip":data['ip'],"port":data['port']})
+            recheck.append({"subnet":subnet,"ip":data['ip'],"port":data['port'],'bytes':data['bytes'],'lastBytes':data['lastBytes']})
+        recheck = sorted(recheck, key=lambda data: int(data['bytes']), reverse=True) 
         return recheck
 
     def asnLookUp(self,asnList,line):
@@ -332,7 +333,17 @@ class Bender(Tools):
             #tracking active subnets, preventing re-optimizing active links
             activeSubnets.append(options['subnet'])
             #Skip if already in history
-            if options['subnet'] in self.files['history.json']: continue
+            if options['subnet'] in self.files['history.json']: 
+                updatedUnix = datetime.strptime(line['stamp_updated'], "%Y-%m-%d %H:%M:%S").timestamp()
+                current = time.time()
+                #reset lastBytes if stamp_updated is older than 60s
+                if updatedUnix + 60 > current: 
+                    self.files['history.json'][options['subnet']]['lastBytes'] = 0
+                else:
+                    self.files['history.json'][options['subnet']]['bytes'] += line['bytes'] - self.files['history.json'][options['subnet']]['lastBytes']
+                    #update lastBytes
+                    self.files['history.json'][options['subnet']]['lastBytes'] = line['bytes']
+                continue
             #Skip if listed in ignoreSubnets
             if options['subnet'] in self.files['config.json']['ignoreSubnets']: continue
             #Check if route for IP already exists
@@ -345,18 +356,22 @@ class Bender(Tools):
                 options = options.copy()
                 if self.files['config.json']['lazy']:
                     if options['subnet'] not in self.files['history.json']: self.files['history.json'][options['subnet']] = {}
-                    self.files['history.json'][options['subnet']] = {'ip':line['ip_dst'],'port':line['port_dst'],'expiry':int(datetime.now().timestamp() + 300)}
+                    self.files['history.json'][options['subnet']] = {'ip':line['ip_dst'],'port':line['port_dst'],'bytes':line['bytes'],'lastBytes':line['bytes'],'expiry':int(datetime.now().timestamp() + 300)}
                     logging.info(f"Lazy {line['ip_dst']}")
                 else:
+                    line['lastBytes'] = 0
                     threads.append({"subnet":options['subnet'],"line":line,"options":options,"asndata":asndata,"files":self.files})
                     logging.info(f"Analyzing {line['ip_dst']}")
         history = self.history(activeSubnets)
         logging.debug("Checking history")
+        logging.debug(f"History Backlog {len(history)}")
+        if len(history) > int(self.files['config.json']['threads']) * 5:
+            logging.warning(f"Current history backlog {len(history)}")
         for data in history:
             #Check if we already hit the current checks limit
             if len(threads) > self.files['config.json']['threads']: break
             #Filter ASN if loadBalancing... is disabled/enabled
-            line = {"ip_dst":data['ip'],"port_dst":data['port']}
+            line = {"ip_dst":data['ip'],"port_dst":data['port'],"bytes":data['bytes'],"lastBytes":data['lastBytes']}
             options,asndata,asnList = self.asnLookUp(asnList,line)
             if options == False: continue
             #Check for existing route
@@ -390,17 +405,21 @@ class Bender(Tools):
         pool.shutdown(wait=True)
         #process results
         for result in results:
+            line = result['line']
             logging.info(result['msg'])
             if result['subnet'] not in self.files['history.json']: self.files['history.json'][result['subnet']] = {}
             if result['possible'] == True and result['success'] == False:
                 #wait 4-8 hours before re-check, latency difference wasn't high enough or direct was better
-                self.files['history.json'][result['subnet']] = {'ip':result['line']['ip_dst'],'port':result['line']['port_dst'],'expiry':int(datetime.now().timestamp()) + random.randint(14400, 28800)}
+                expiry = int(datetime.now().timestamp()) + random.randint(14400, 28800)
+                self.files['history.json'][result['subnet']] = {'ip':line['ip_dst'],'port':line['port_dst'],'bytes':0,'lastBytes':0,'expiry':expiry}
             elif result['possible'] == False:
                 #wait 12-24 hours before re-check, since we could not optimize / no pingable ip
-                self.files['history.json'][result['subnet']] = {'ip':result['line']['ip_dst'],'port':result['line']['port_dst'],'expiry':int(datetime.now().timestamp()) + random.randint(43200, 86400)}
+                expiry = int(datetime.now().timestamp()) + random.randint(43200, 86400)
+                self.files['history.json'][result['subnet']] = {'ip':line['ip_dst'],'port':line['port_dst'],'bytes':0,'lastBytes':0,'expiry':expiry}
             else:
                 #wait 2-6 hours before re-check
-                self.files['history.json'][result['subnet']] = {'ip':result['line']['ip_dst'],'port':result['line']['port_dst'],'expiry':int(datetime.now().timestamp()) + random.randint(7200, 21600)}
+                expiry = int(datetime.now().timestamp()) + random.randint(7200, 21600)
+                self.files['history.json'][result['subnet']] = {'ip':line['ip_dst'],'port':line['port_dst'],'bytes':0,'lastBytes':0,'expiry':expiry}
             #loadbalancing
             if result['lbMap']:
                 for asn,node in result['lbMap'].items():
@@ -426,16 +445,25 @@ class Bender(Tools):
             for response in results:
                 for index, protocol in enumerate(response):
                     lastByte = protocol['lastByte']
+                    if not lastByte in self.files['status.json']: self.files['status.json'][lastByte] = {"offline":0}
                     if protocol['parsed']: 
                         for entry in protocol['parsed']:
-                            logging.debug(f"Removing {entry} from routing table")
-                            via = "10.0.251." if index == 0 else "fc10:251::"
-                            prot = "-4" if index == 0 else "-6"
-                            Bender.cmd(f'ip {prot} route del {entry} via {via}{lastByte} dev vxlan1 table BENDER')
-                            logging.debug(f"Removing {entry} from history.json")
-                            if entry in self.files['history.json']: del self.files['history.json'][entry]
+                            #wait for the second confirmation / run before we pull any routes
+                            if self.files['status.json'][lastByte]['offline']:
+                                logging.WARNING(f"Pulling {len(protocol['parsed'])} routes")
+                                logging.debug(f"Removing {entry} from routing table")
+                                via = "10.0.251." if index == 0 else "fc10:251::"
+                                prot = "-4" if index == 0 else "-6"
+                                Bender.cmd(f'ip {prot} route del {entry} via {via}{lastByte} dev vxlan1 table BENDER')
+                                if entry in self.files['history.json']: 
+                                    logging.debug(f"Removing {entry} from history.json")
+                                    del self.files['history.json'][entry]
+                    if response[0]['isDown']:
+                        self.files['status.json'][lastByte]['offline'] = 1
+                    else:
+                        self.files['status.json'][lastByte]['offline'] = 0
         #updating json files
-        saving = ['loadBalancing.json','history.json']
+        saving = ['loadBalancing.json','history.json','status.json']
         for entry in saving:
             logging.debug(f"Saving {entry}")
             with open(self.path+f'/data/{entry}', 'w') as f:
