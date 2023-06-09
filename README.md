@@ -92,7 +92,9 @@ Since they route the entire subnet, e.g /10 internally.
 You can enable multi if the primary IP is not pingable it tries to figure out the gateway.<br />
 This works for fine for some Networks like AWS but can cause problems with others like Google.<br />
 
-Blacklist/Whitelist can be used to ignore/allow certain nodes for a specific ASN
+Blacklist/Whitelist can be used to ignore/allow certain nodes for a specific ASN.<br />
+
+lazy by default enabled, will not initially optimize active connections.<br />
 
 **Config.json examples**
 ```
