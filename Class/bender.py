@@ -196,8 +196,8 @@ class Bender(Tools):
             parsedIPv6 = re.findall("^([a-z0-9:.\/]+)",routes, re.MULTILINE | re.DOTALL)
         return {"isDown":isDown,"lastByte":lastByte[0][1],"parsed":parsedIPv4},{"isDown":isDown,"lastByte":lastByte[0][1],"parsed":parsedIPv6}
 
-    def debug(self,ip):
-        options,asndata,asnList = self.asnLookUp([],{"ip_dst":ip})
+    def debug(self,ip,port):
+        options,asndata,asnList = self.asnLookUp([],{"ip_dst":ip,"port_dst":port})
         print(f"Using options {options}")
         print("Running fping")
         pingable,srcFping = self.mtrIP(ip,options,asndata)
