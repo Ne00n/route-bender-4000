@@ -122,7 +122,7 @@ class Bender(Tools):
     def magic(payload):
         line,options,asndata,files,subnet,lbMap = payload['line'],payload['options'],payload['asndata'],payload['files'],payload['subnet'],{}
         logging.debug(f"Running {line['ip_dst']}")
-        pingable,srcFping = Bender.mtrIP(line['ip_dst'],options,asndata)
+        pingable,direct = Bender.mtrIP(line['ip_dst'],options,asndata)
         if pingable == "0.0.0.0": return {"lbMap":lbMap,"success":False,"possible":False,"line":line,"subnet":subnet,"msg":f"Could not optimize {line['ip_dst']}, no pingable IP found"}
         #fping
         threads,latency = [],[]
@@ -135,16 +135,12 @@ class Bender(Tools):
         pool.join()
         #process results
         for data in results: 
-            if data['parsed']:
-                avrg = Bender.getAvrg(data['result'])
-                latency.append([avrg,data['lastByte'][0][1]])
-                logging.debug(f"Got {avrg}ms to {data['ip']} from {data['server']}")
-            else:
-                logging.warning(f"{pingable} is not reachable via {data['server']}")
+            avrg = Bender.getAvrg(data['results'][pingable])
+            latency.append([avrg,data['lastByte'][0][1]])
+            logging.debug(f"Got {avrg}ms to {data['ip']} from {data['server']}")
         #if we got no result abort       
         if not latency: return
         latency.sort()
-        direct = Bender.getAvrg(srcFping)
         #whitelist / blacklist
         for entry in latency:
             #when exit in blacklist continue
@@ -200,7 +196,7 @@ class Bender(Tools):
         options,asndata,asnList = self.asnLookUp([],{"ip_dst":ip,"port_dst":port})
         print(f"Using options {options}")
         print("Running fping")
-        pingable,srcFping = self.mtrIP(ip,options,asndata)
+        pingable,avg = self.mtrIP(ip,options,asndata)
         print(f"Using {pingable} instead of {ip}")
         if pingable == "0.0.0.0": exit()
         ip = pingable
@@ -215,11 +211,7 @@ class Bender(Tools):
         pool.close()
         pool.join()
         #process results
-        for data in results: 
-            if data['parsed']:
-                fping[data['server']] = self.getAvrg(data['result'])
-            else:
-                print(data['ip']+" is not reachable via "+data['server'])
+        for data in results: fping[data['server']] = self.getAvrg(data['results'][pingable])
         fping = {k: fping[k] for k in sorted(fping, key=fping.get)}
         print("--- Direct ---")
         directAvrg = fping["direct"]
