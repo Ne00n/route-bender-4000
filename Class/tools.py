@@ -33,7 +33,7 @@ class Tools:
         return False
 
     @staticmethod
-    def fping(target):
+    def findPingable(target):
         fping = Tools.cmd(f"fping -c3 {target}")
         results = fping[1].split("\n")
         for result in results:
@@ -52,12 +52,12 @@ class Tools:
                 host = f" {ip[:-1]}{entry}" if IPAddress(ip).version == 4 else f" {ip}{entry}"
                 target += host
         logging.debug(f"MTR fping running to targets: {target}")
-        destIP,fping = Tools.fping(target)
+        destIP,fping = Tools.findPingable(target)
         if destIP: return destIP,fping
         logging.debug(f"{orgTarget} not reachable, asking plugins")
         data = Tools.hook('unreachable',orgTarget)
         if data:
-            destIP,fping = Tools.fping(' '.join(data))
+            destIP,fping = Tools.findPingable(' '.join(data))
             if destIP: return destIP,fping
         logging.debug(f"{orgTarget} not reachable, trying to MTR")
         mtr = Tools.cmd('mtr '+orgTarget+' --report --report-cycles 3 --no-dns')
