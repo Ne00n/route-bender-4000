@@ -197,15 +197,11 @@ class Bender(Tools):
         return {"isDown":isDown,"lastByte":lastByte[0][1],"parsed":parsedIPv4},{"isDown":isDown,"lastByte":lastByte[0][1],"parsed":parsedIPv6}
 
     def debug(self,ip):
-        asndata = self.asndb.lookup(ip)
-        if asndata[0] is None:
-            asndata = {0:"0",1:"0.0.0.0/0"}
-            options = {"force":False,"multi":False,"route":"/32"}
-        else:
-            options = {"force":False,"multi":True,"route":asndata[1],"subnet":asndata[1]}
+        options,asndata,asnList = self.asnLookUp([],{"ip_dst":ip})
         print(f"Using options {options}")
         print("Running fping")
         pingable,srcFping = self.mtrIP(ip,options,asndata)
+        print(f"Using {pingable} instead of {ip}")
         if pingable == "0.0.0.0": exit()
         ip = pingable
         #fping
