@@ -21,28 +21,31 @@ class Bender(Tools):
         stream_handler.setLevel(levels[level])
         logging.basicConfig(format='%(asctime)s %(levelname)s %(message)s',datefmt='%d.%m.%Y %H:%M:%S',level=levels[level],handlers=[RotatingFileHandler(maxBytes=10000000,backupCount=5,filename=f"{path}/logs/bender.log"),stream_handler])
         #Files
-        filesToLoad = {path+'/config/nodes.json':True,path+'/config/config.json':True,'/tmp/pmacct_avg.json':True,path+'/data/loadBalancing.json':False,path+'/data/history.json':False,path+'/data/status.json':False}
+        self.filesToLoad = {path+'/config/nodes.json':True,path+'/config/config.json':True,'/tmp/pmacct_avg.json':True,path+'/data/loadBalancing.json':False,path+'/data/history.json':False,path+'/data/status.json':False}
         self.files,self.exit = {},False
         os.nice(20)
         if load:
             logging.debug("Loading asn")
             self.asndb = pyasn.pyasn(path+'/asn.dat')
             self.path = path
-            for file,required in filesToLoad.items():
-                logging.debug(f"Loading {file}")
-                parts = file.split("/")
-                try:
-                    with open(file) as handle:
-                        if "pmacct_avg" in file:
-                            self.files[parts[len(parts)-1]] = handle.read()
-                        else:
-                            self.files[parts[len(parts)-1]] = json.loads(handle.read())
-                except:
-                    if required == False:
-                        self.files[parts[len(parts)-1]] = {}
-                    else:
-                        exit(f"Failed to load {file}")
+            self.loadFiles()
         os.nice(0)
+
+    def loadFiles(self):
+        for file,required in self.filesToLoad.items():
+            logging.debug(f"Loading {file}")
+            parts = file.split("/")
+            try:
+                with open(file) as handle:
+                    if "pmacct_avg" in file:
+                        self.files[parts[len(parts)-1]] = handle.read()
+                    else:
+                        self.files[parts[len(parts)-1]] = json.loads(handle.read())
+            except:
+                if required == False:
+                    self.files[parts[len(parts)-1]] = {}
+                else:
+                    exit(f"Failed to load {file}")
 
     def prepare(self):
         logging.debug("Prepare")
@@ -307,9 +310,7 @@ class Bender(Tools):
         logging.debug("systemd READY")
         while True:
             if self.exit: sys.exit(0)
-            logging.debug("Reading pmacct_avg.json")
-            with open("/tmp/pmacct_avg.json") as handle:
-                self.files["pmacct_avg.json"] = handle.read()
+            self.loadFiles()
             self.run(True)
 
     def run(self,deamon=False):
