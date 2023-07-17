@@ -1,5 +1,5 @@
 from concurrent.futures import ProcessPoolExecutor as Pool
-import random, logging, pyasn, time, json, sys, re, os
+import systemd.daemon, random, logging, pyasn, signal, time, json, sys, re, os
 from logging.handlers import RotatingFileHandler
 from netaddr import IPNetwork, IPAddress
 from ipaddress import ip_network
@@ -22,7 +22,7 @@ class Bender(Tools):
         logging.basicConfig(format='%(asctime)s %(levelname)s %(message)s',datefmt='%d.%m.%Y %H:%M:%S',level=levels[level],handlers=[RotatingFileHandler(maxBytes=10000000,backupCount=5,filename=f"{path}/logs/bender.log"),stream_handler])
         #Files
         filesToLoad = {path+'/config/nodes.json':True,path+'/config/config.json':True,'/tmp/pmacct_avg.json':True,path+'/data/loadBalancing.json':False,path+'/data/history.json':False,path+'/data/status.json':False}
-        self.files = {}
+        self.files,self.exit = {},False
         os.nice(20)
         if load:
             logging.debug("Loading asn")
@@ -289,14 +289,37 @@ class Bender(Tools):
         #Lets go bending
         return base,asndata,asnList
 
-    def run(self):
-        ips,asnList,activeSubnets,threads = [],[],[],[]
+
+    def graceful_exit(self,signal_number,stack_frame):
+       systemd.daemon.notify('STOPPING=1')
+       logging.debug("systemd STOPPING")
+       self.exit = True
+
+    def deamon(self):        
         running = self.cmd('ps ax | grep "bender.py"')[0]
         if len(running.split("\n")) > 4:
             logging.warning("bender.py already running, exiting")
             exit("bender.py already running, exiting")
-        logging.debug("Launching")
+        signal.signal(signal.SIGINT, self.graceful_exit)
+        signal.signal(signal.SIGTERM, self.graceful_exit)
         self.prepare()
+        systemd.daemon.notify('READY=1')
+        logging.debug("systemd READY")
+        while True:
+            if self.exit: sys.exit(0)
+            logging.debug("Reading pmacct_avg.json")
+            with open("/tmp/pmacct_avg.json") as handle:
+                self.files["pmacct_avg.json"] = handle.read()
+            self.run(True)
+
+    def run(self,deamon=False):
+        ips,asnList,activeSubnets,threads = [],[],[],[]
+        running = self.cmd('ps ax | grep "bender.py"')[0]
+        if not deamon and len(running.split("\n")) > 4:
+            logging.warning("bender.py already running, exiting")
+            exit("bender.py already running, exiting")
+        logging.debug("Launching")
+        if not deamon: self.prepare()
         logging.debug("Checking pmacct")
         for row in self.files['pmacct_avg.json'].split('\n'):
             if row.strip() == "": continue
