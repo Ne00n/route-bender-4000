@@ -346,9 +346,6 @@ class Bender(Tools):
             activeSubnets.append(options['subnet'])
             #Skip if already in history
             if options['subnet'] in self.files['history.json']: 
-                updatedUnix = datetime.strptime(line['stamp_updated'], "%Y-%m-%d %H:%M:%S").timestamp()
-                current = time.time()
-                #reset lastBytes if stamp_updated is older than 60s
                 diff = line['bytes'] - self.files['history.json'][options['subnet']]['lastBytes']
                 if diff >= 0:
                     self.files['history.json'][options['subnet']]['bytes'] += diff
