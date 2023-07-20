@@ -458,18 +458,17 @@ class Bender(Tools):
                 for index, protocol in enumerate(response):
                     lastByte = protocol['lastByte']
                     if not lastByte in self.files['status.json']: self.files['status.json'][lastByte] = {"offline":0}
-                    if protocol['parsed']: 
+                     #wait for the second confirmation / run before we pull any routes
+                    if protocol['parsed'] and self.files['status.json'][lastByte]['offline']:
+                        logging.warning(f"Pulling {len(protocol['parsed'])} routes")
                         for entry in protocol['parsed']:
-                            #wait for the second confirmation / run before we pull any routes
-                            if self.files['status.json'][lastByte]['offline']:
-                                logging.warning(f"Pulling {len(protocol['parsed'])} routes")
-                                logging.debug(f"Removing {entry} from routing table")
-                                via = "10.0.251." if index == 0 else "fc10:251::"
-                                prot = "-4" if index == 0 else "-6"
-                                Bender.cmd(f'ip {prot} route del {entry} via {via}{lastByte} dev vxlan1 table BENDER')
-                                if entry in self.files['history.json']: 
-                                    logging.debug(f"Removing {entry} from history.json")
-                                    del self.files['history.json'][entry]
+                            logging.debug(f"Removing {entry} from routing table")
+                            via = "10.0.251." if index == 0 else "fc10:251::"
+                            prot = "-4" if index == 0 else "-6"
+                            Bender.cmd(f'ip {prot} route del {entry} via {via}{lastByte} dev vxlan1 table BENDER')
+                            if entry in self.files['history.json']: 
+                                logging.debug(f"Removing {entry} from history.json")
+                                del self.files['history.json'][entry]
                     if response[0]['isDown']:
                         self.files['status.json'][lastByte]['offline'] = 1
                     else:
