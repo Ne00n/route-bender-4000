@@ -314,7 +314,7 @@ class Bender(Tools):
             self.loadFiles()
             self.run(True)
             total = time.time() - start
-            if total < 5: time.sleep(30)
+            if total < 15: time.sleep(30)
 
     def run(self,deamon=False):
         ips,asnList,activeSubnets,threads = [],[],[],[]
@@ -439,7 +439,7 @@ class Bender(Tools):
         nodeThreads,online = [],0
         for server in self.files['nodes.json']: nodeThreads.append(server)
         #dispatch
-        pool = multiprocessing.Pool(processes = len(nodeThreads))
+        pool = multiprocessing.Pool(processes = round(len(nodeThreads) / 2))
         results = pool.map(self.checkNode, nodeThreads)
         #wait for everything
         pool.close()
