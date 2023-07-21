@@ -378,7 +378,7 @@ class Bender(Tools):
             #Check if we already hit the current checks limit
             if len(threads) > self.files['config.json']['threads']: break
             #Filter ASN if loadBalancing... is disabled/enabled
-            line = {"ip_dst":data['ip'],"port_dst":data['port'],"bytes":data['bytes'],"lastBytes":data['lastBytes']}
+            line = {"ip_dst":data['ip'],"port_dst":data['port'],"bytes":data['bytes'],"lastBytes":data['lastBytes'],'rounds':data['rounds']}
             options,asndata,asnList = self.asnLookUp(asnList,line)
             if options == False: continue
             #Check for existing route
