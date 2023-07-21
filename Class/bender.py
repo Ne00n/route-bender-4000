@@ -243,7 +243,7 @@ class Bender(Tools):
             if subnet in activeSubnets: continue
             #Cooldown check
             if data['expiry'] > int(datetime.now().timestamp()): continue
-            recheck.append({"subnet":subnet,"ip":data['ip'],"port":data['port'],'bytes':data['bytes'],'lastBytes':data['lastBytes']})
+            recheck.append({"subnet":subnet,"ip":data['ip'],"port":data['port'],'bytes':data['bytes'],'lastBytes':data['lastBytes'],'rounds':data['rounds']})
         recheck = sorted(recheck, key=lambda data: int(data['bytes']), reverse=True) 
         return recheck
 
@@ -363,10 +363,10 @@ class Bender(Tools):
                 options = options.copy()
                 if self.files['config.json']['lazy']:
                     if options['subnet'] not in self.files['history.json']: self.files['history.json'][options['subnet']] = {}
-                    self.files['history.json'][options['subnet']] = {'ip':line['ip_dst'],'port':line['port_dst'],'bytes':line['bytes'],'lastBytes':line['bytes'],'expiry':int(datetime.now().timestamp() + 300)}
+                    self.files['history.json'][options['subnet']] = {'ip':line['ip_dst'],'port':line['port_dst'],'bytes':line['bytes'],'lastBytes':line['bytes'],'rounds':0,'expiry':int(datetime.now().timestamp() + 300)}
                     logging.info(f"Lazy {line['ip_dst']}")
                 else:
-                    line['lastBytes'] = 0
+                    line['lastBytes'],line['rounds'] = 0,0
                     threads.append({"subnet":options['subnet'],"line":line,"options":options,"asndata":asndata,"files":self.files})
                     logging.info(f"Analyzing {line['ip_dst']}")
         history = self.history(activeSubnets)
@@ -413,6 +413,7 @@ class Bender(Tools):
         #process results
         for result in results:
             line = result['line']
+            rounds = line['rounds']
             logging.info(result['msg'])
             if result['subnet'] not in self.files['history.json']: self.files['history.json'][result['subnet']] = {}
             if result['possible'] == True and result['success'] == False:
@@ -424,7 +425,8 @@ class Bender(Tools):
             else:
                 #wait 2-6 hours before re-check
                 expiry = int(datetime.now().timestamp()) + random.randint(7200, 21600)
-            self.files['history.json'][result['subnet']] = {'ip':line['ip_dst'],'port':line['port_dst'],'bytes':0,'lastBytes':0,'expiry':expiry}
+            if line['bytes'] == 0: rounds += 1
+            self.files['history.json'][result['subnet']] = {'ip':line['ip_dst'],'port':line['port_dst'],'bytes':0,'lastBytes':0,'rounds':rounds,'expiry':expiry}
             #loadbalancing
             if result['lbMap']:
                 for asn,node in result['lbMap'].items():
