@@ -310,8 +310,11 @@ class Bender(Tools):
         logging.debug("systemd READY")
         while True:
             if self.exit: sys.exit(0)
+            start = time.time()
             self.loadFiles()
             self.run(True)
+            total = time.time() - start
+            if total < 5: time.sleep(30)
 
     def run(self,deamon=False):
         ips,asnList,activeSubnets,threads = [],[],[],[]
