@@ -406,8 +406,12 @@ class Bender(Tools):
                         if entry in self.files['history.json']: del self.files['history.json'][data['subnet']]
                         break
             options = options.copy()
-            threads.append({"subnet":options['subnet'],"line":line,"options":options,"asndata":asndata,"files":self.files})
-            logging.info(f"Analyzing {data['ip']}")
+            #Check for rounds limit
+            if line['rounds'] <= 15:
+                threads.append({"subnet":options['subnet'],"line":line,"options":options,"asndata":asndata,"files":self.files})
+                logging.info(f"Analyzing {data['ip']}")
+            else:
+                logging.info(f"Removing {data['ip']} from history due to rounds limit / inactivity")
         #dispatch
         pool = Pool(max_workers = self.files['config.json']['threads'])
         results = pool.map(self.magic, threads)
