@@ -411,7 +411,7 @@ class Bender(Tools):
                 threads.append({"subnet":options['subnet'],"line":line,"options":options,"asndata":asndata,"files":self.files})
                 logging.info(f"Analyzing {data['ip']}")
             else:
-                logging.info(f"Removing {data['ip']} from history due to rounds limit / inactivity")
+                logging.info(f"Removing {data['ip']} from history due inactivity")
         #dispatch
         pool = Pool(max_workers = self.files['config.json']['threads'])
         results = pool.map(self.magic, threads)
