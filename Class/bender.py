@@ -375,8 +375,7 @@ class Bender(Tools):
         history = self.history(activeSubnets)
         logging.debug("Checking history")
         logging.debug(f"History Backlog {len(history)}")
-        if len(history) > int(self.files['config.json']['threads']) * 5:
-            logging.warning(f"Current history backlog {len(history)}")
+        if len(history) > int(self.files['config.json']['threads']) * 5: logging.warning(f"Current history backlog {len(history)}")
         for data in history:
             #Check if we already hit the current checks limit
             if len(threads) > self.files['config.json']['threads']: break
@@ -411,7 +410,7 @@ class Bender(Tools):
                 threads.append({"subnet":options['subnet'],"line":line,"options":options,"asndata":asndata,"files":self.files})
                 logging.info(f"Analyzing {data['ip']}")
             else:
-                logging.info(f"Removing {data['ip']} from history due inactivity")
+                logging.info(f"Removing {data['ip']} from history due to inactivity")
         #dispatch
         pool = Pool(max_workers = self.files['config.json']['threads'])
         results = pool.map(self.magic, threads)
@@ -432,10 +431,7 @@ class Bender(Tools):
             else:
                 #wait 2-6 hours before re-check
                 expiry = int(datetime.now().timestamp()) + random.randint(7200, 21600)
-            if line['bytes'] == 0: 
-                rounds += 1
-            else:
-                rounds = 0
+            rounds += 1 if line['bytes'] == 0 else 0
             self.files['history.json'][result['subnet']] = {'ip':line['ip_dst'],'port':line['port_dst'],'bytes':0,'lastBytes':0,'rounds':rounds,'expiry':expiry}
             #loadbalancing
             if result['lbMap']:
