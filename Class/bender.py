@@ -328,12 +328,9 @@ class Bender(Tools):
         for row in self.files['pmacct_avg.json'].split('\n'):
             if row.strip() == "": continue
             line = json.loads(row)
-            #Filter Local/Multicast traffic
+            #Filter Multicast traffic
             if '239.255.255.' in line['ip_dst']: continue
             if '224.0.0.' in line['ip_dst']: continue
-            if '192.168.' in line['ip_dst']: continue
-            if '172.16.' in line['ip_dst']: continue
-            if '10.0.' in line['ip_dst']: continue
             #Filter out private ranges
             if IPAddress(line['ip_dst']).is_private(): continue
             #Filter out reserved ranges
