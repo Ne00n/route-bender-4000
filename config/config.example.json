@@ -14,5 +14,6 @@
   "ignorePorts": [80,443],
   "ignoreSubnets": [],
   "threads": 30,
+  "rounds":15,
   "lazy":true
 }

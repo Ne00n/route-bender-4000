@@ -292,7 +292,6 @@ class Bender(Tools):
         #Lets go bending
         return base,asndata,asnList
 
-
     def graceful_exit(self,signal_number,stack_frame):
        systemd.daemon.notify('STOPPING=1')
        logging.debug("systemd STOPPING")
@@ -403,7 +402,7 @@ class Bender(Tools):
                         break
             options = options.copy()
             #Check for rounds limit
-            if line['rounds'] <= 15:
+            if line['rounds'] <= self.files['config.json']['rounds']:
                 threads.append({"subnet":options['subnet'],"line":line,"options":options,"asndata":asndata,"files":self.files})
                 logging.info(f"Analyzing {data['ip']}")
             else:
