@@ -397,8 +397,9 @@ class Bender(Tools):
                         vxlan = "vxlan1" if IPAddress(data['ip']).version == 4 else "vxlan1v6"
                         self.cmd(f'ip route del {entry} via {node} dev {vxlan} table BENDER')
                         #Remove from history.json
-                        logging.debug(f"Removing {data['subnet']} from history.json")
-                        if entry in self.files['history.json']: del self.files['history.json'][data['subnet']]
+                        if entry in self.files['history.json']: 
+                            logging.debug(f"Removing {data['subnet']} from history.json")
+                            del self.files['history.json'][data['subnet']]
                         break
             options = options.copy()
             #Check for rounds limit
@@ -407,6 +408,10 @@ class Bender(Tools):
                 logging.info(f"Analyzing {data['ip']}")
             else:
                 logging.info(f"Removing {data['ip']} from history due to inactivity")
+                #Remove from history.json in case the route does not exist anymore or has been cleared
+                if data['subnet'] in self.files['history.json']:
+                    logging.debug(f"Removing {data['subnet']} from history.json due to inactivity")
+                    del self.files['history.json'][data['subnet']]
         #dispatch
         pool = Pool(max_workers = self.files['config.json']['threads'])
         results = pool.map(self.magic, threads)
