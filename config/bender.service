@@ -1,0 +1,10 @@
+[Unit]
+Description=bender service
+[Service]
+Type=simple
+StandardOutput=null
+Environment=PYTHONUNBUFFERED=1
+WorkingDirectory=/root/route-bender-4000
+ExecStart=/usr/bin/python3 bender.py deamon
+[Install]
+WantedBy=multi-user.target

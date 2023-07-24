@@ -46,6 +46,7 @@ apt-get install -y pmacct python3 python3-pip && pip3 install pyasn
 **Usage**<br />
 ```
 python3 bender.py
+python3 bender.py deamon
 python3 bender.py debug 1.1.1.1
 python3 bender.py optimize 1.1.1.1 53
 python3 bender.py level debug / info (default) / warning
@@ -65,6 +66,8 @@ systemctl start pmacctd
 **Update asn data**
 ```
 pyasn_util_download.py --latestv46 && pyasn_util_convert.py --single rib.202* asn.dat
+#or IPv4 only
+pyasn_util_download.py --latestv4 && pyasn_util_convert.py --single rib.202* asn.dat
 ```
 
 **Debugging**<br />
@@ -92,7 +95,9 @@ Since they route the entire subnet, e.g /10 internally.
 You can enable multi if the primary IP is not pingable it tries to figure out the gateway.<br />
 This works for fine for some Networks like AWS but can cause problems with others like Google.<br />
 
-Blacklist/Whitelist can be used to ignore/allow certain nodes for a specific ASN
+Blacklist/Whitelist can be used to ignore/allow certain nodes for a specific ASN.<br />
+
+lazy by default enabled, will not initially optimize active connections.<br />
 
 **Config.json examples**
 ```

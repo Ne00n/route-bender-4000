@@ -9,6 +9,9 @@ if len(sys.argv) == 1:
 elif sys.argv[1] == "level":
     bender = Bender(path,True,sys.argv[2])
     bender.run()
+elif sys.argv[1] == "deamon":
+    bender = Bender(path,True)
+    bender.deamon()
 elif sys.argv[1] == "clear":
     bender = Bender(path,False)
     bender.clear()
@@ -23,6 +26,6 @@ elif sys.argv[1] == "optimize":
     bender.optimize(sys.argv[2],sys.argv[3])
 elif sys.argv[1] == "debug":
     bender = Bender(path,True,"debug")
-    bender.debug(sys.argv[2])
+    bender.debug(sys.argv[2],sys.argv[3])
 else:
-    print("show, clear, debug, optimize, level, stats")
+    print("deamon, show, clear, debug, optimize, level, stats")

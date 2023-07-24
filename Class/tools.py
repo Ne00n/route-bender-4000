@@ -33,16 +33,21 @@ class Tools:
         return False
 
     @staticmethod
-    def fping(target):
-        fping = Tools.cmd(f"fping -c3 {target}")
-        results = fping[1].split("\n")
-        for result in results:
-            if "/0%" in result: return re.findall("^[a-z0-9.:]+",result, re.MULTILINE)[0],fping[0]
-        return False,False
+    def fping(targets,pings=3,cmd="fping -c"):
+        fping = f"{cmd}{pings} "
+        fping += " ".join(targets)
+        result = Tools.cmd(fping)[0]
+        parsed = re.findall("([0-9.]+).*?([0-9]+.[0-9]+|timed out).*?([0-9]+)% loss",result, re.MULTILINE)
+        if not parsed: return False
+        latency =  {}
+        for ip,ms,loss in parsed:
+            if ip not in latency: latency[ip] = []
+            latency[ip].append([ms,loss])
+        return latency
     
     @staticmethod
     def mtrIP(target,options,asndata):
-        orgTarget = target
+        targets = [target]
         if asndata[0] is not None and options["multi"] == True and options['route'] != "/32":
             logging.debug(f"ASN {asndata[0]} {target} multi")
             ips4,ips6 = [0,1,2,3,4,5,252,253,254],['','1']
@@ -50,59 +55,65 @@ class Tools:
             ips = ips4 if IPAddress(target).version == 4 else ips6
             for entry in ips:
                 host = f" {ip[:-1]}{entry}" if IPAddress(ip).version == 4 else f" {ip}{entry}"
-                target += host
-        logging.debug(f"MTR fping running to targets: {target}")
-        destIP,fping = Tools.fping(target)
-        if destIP: return destIP,fping
-        logging.debug(f"{orgTarget} not reachable, asking plugins")
-        data = Tools.hook('unreachable',orgTarget)
+                targets.append(host)
+        results = Tools.fping(targets)
+        avg = Tools.getAvrg(results[target])
+        if avg != 65000: return target, avg
+        data = Tools.hook('unreachable',target)
         if data:
-            destIP,fping = Tools.fping(' '.join(data))
-            if destIP: return destIP,fping
-        logging.debug(f"{orgTarget} not reachable, trying to MTR")
-        mtr = Tools.cmd('mtr '+orgTarget+' --report --report-cycles 3 --no-dns')
+            results = Tools.fping(data)
+            latency = Tools.getAvrgAll(results)
+            first = next(iter(latency))
+            if latency[first] != 65000: return first,latency[first]
+        logging.debug(f"{target} not reachable, trying to MTR")
+        mtr = Tools.cmd('mtr '+target+' --report --report-cycles 3 --no-dns')
         ips = re.findall("-- ([0-9a-z.:]+)",mtr[0], re.MULTILINE)
         ips = ips if len(ips) < 4 else ips[len(ips) -3:]
         for ip in list(ips): 
             if IPAddress(ip).is_private(): ips.remove(ip)
-        if not ips: 
-            logging.debug(f"Could not find reachable IP for {orgTarget}")
-            return "0.0.0.0",""
-        fping = Tools.cmd(f"fping -c3 {' '.join(ips)}")
-        results = fping[1].split("\n")
-        for result in results: 
-            if "/0%" in result: return re.findall("^[a-z0-9.:]+",result, re.MULTILINE)[0],fping[0]
-        logging.debug(f"Could not find reachable IP for {orgTarget}")
+        if not ips: return "0.0.0.0",""
+        results = Tools.fping(ips)
+        latency = Tools.getAvrgAll(results)
+        latency = dict(sorted(latency.items(), key=lambda item: item[1], reverse=True))
+        for ip,ms in latency.items(): 
+            if ms != 65000: return ip,ms
         return "0.0.0.0",""
 
     @staticmethod
-    def fpingSource(server,ip):
+    def fpingSource(server,ip,pings = 6):
         lastByte = re.findall("^([0-9.]+)\.([0-9]+)",server, re.MULTILINE | re.DOTALL)
         server = server if IPAddress(ip).version == 4 else server.replace("10.0.252.","fc10:252::")
         if server == "direct":
-            result = Tools.cmd("fping -c6 "+ip)[0]
+            results = Tools.fping([ip],6)
         else:
-            result = Tools.cmd("fping -c6 "+ip+" -S "+server)[0]
-        parsed = re.findall("([a-z0-9:.]+).*?([0-9]+.[0-9]+|NaN avg).*?([0-9]+)% loss",result, re.MULTILINE)
-        return parsed,result,lastByte
+            results = Tools.fping([ip],6,f"fping -S {server} -c")
+        return results,lastByte
 
     @staticmethod
     def fpingWorker(data):
-        parsed,result,lastByte = Tools.fpingSource(data['server'],data['ip'])
-        return {"parsed":parsed,"result":result,"lastByte":lastByte,"ip":data['ip'],"server":data['server']}
+        results,lastByte = Tools.fpingSource(data['server'],data['ip'])
+        return {"results":results,"lastByte":lastByte,"ip":data['ip'],"server":data['server']}
 
     @staticmethod
-    def getAvrg(fping):
-        latency = []
-        parsed = re.findall("([a-z0-9:.]+).*?([0-9]+.[0-9]+|NaN avg).*?([0-9]+)% loss",fping, re.MULTILINE)
-        for ip,ms,loss in parsed:
-            if ms == "NaN avg": continue
-            latency.append(float(ms))
-        if len(latency) > 1: del latency[0] #drop the first ping result
-        if not latency: return 65000
-        total = 0
-        for ping in latency: total += ping
-        return round(total / len(latency),2)
+    def getAvrgAll(results):
+        latency = {}
+        for ip,pings in results.items():
+            avg = Tools.getAvrg(pings)
+            latency[ip] = float(avg)
+        latency = dict(sorted(latency.items(), key=lambda item: item[1]))
+        return latency
+
+    @staticmethod
+    def getAvrg(row):
+        result = 0
+        if not row: return 65000
+        for entry in row:
+            #ignore timed out
+            if entry[0] == "timed out": continue
+            result += float(entry[0])
+        #do not return 0, never, ever
+        if result == 0: return 65000
+        return int(float(result / len(row)))
 
     @staticmethod
     def checkASNGroup(files,asn):
