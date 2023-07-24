@@ -40,7 +40,7 @@ Configure config.json based on your needs + edit nodes.json
 
 **Dependencies**<br />
 ```
-apt-get install -y pmacct python3 python3-pip && pip3 install pyasn
+apt-get install -y pmacct libsystemd-dev python3 python3-pip && pip3 install pyasn systemd-python netaddr pyasn
 ```
 
 **Usage**<br />
