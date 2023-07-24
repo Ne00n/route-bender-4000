@@ -99,7 +99,7 @@ This works for fine for some Networks like AWS but can cause problems with other
 
 Blacklist/Whitelist can be used to ignore/allow certain nodes for a specific ASN.<br />
 
-lazy by default enabled, will not initially optimize active connections.<br />
+lazy is by default enabled, it will not initially optimize active connections.<br />
 
 **Config.json examples**
 ```
