@@ -129,7 +129,12 @@ class Bender(Tools):
         if pingable == "0.0.0.0": return {"lbMap":lbMap,"success":False,"possible":False,"line":line,"subnet":subnet,"msg":f"Could not optimize {line['ip_dst']}, no pingable IP found"}
         #fping
         threads,latency = [],[]
-        for server in files['nodes.json']: threads.append({"server":server,"ip":pingable})
+        for server in files['nodes.json']: 
+            lastByte = server.split(".")
+            if files['status.json'][lastByte[len(lastByte) -1]]['offline']:
+                logging.debug(f"Skipping fping for {server}")
+                continue
+            threads.append({"server":server,"ip":pingable})
         #dispatch
         pool = multiprocessing.Pool(processes = int(len(files['nodes.json']) / 3))
         results = pool.map(Bender.fpingWorker, threads)
