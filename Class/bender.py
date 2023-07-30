@@ -131,7 +131,7 @@ class Bender(Tools):
         threads,latency = [],[]
         for server in files['nodes.json']: 
             lastByte = server.split(".")
-            if files['status.json'][lastByte[len(lastByte) -1]]['offline']:
+            if lastByte[len(lastByte) -1] in files['status.json'] and files['status.json'][lastByte[len(lastByte) -1]]['offline']:
                 logging.debug(f"Skipping fping for {server}")
                 continue
             threads.append({"server":server,"ip":pingable})
