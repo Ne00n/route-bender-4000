@@ -28,13 +28,13 @@ If any exit dies, all routes will be removed once detected
 - Automatic housekeeping
 If a optimized connection has not been used for a bit, it will be removed
 
-**Installation**<br />
+## Setup<br>
 ```
 apt-get install -y pmacct git libsystemd-dev python3 python3-pip && pip3 install pyasn systemd-python netaddr pyasn
 git clone https://github.com/Ne00n/route-bender-4000.git
 cd route-bender-4000
-#Download the current asn database file
-pyasn_util_download.py --latestv4 && pyasn_util_convert.py --single rib.202* asn.dat
+#Optional, Download the current asn database file
+rm asn.dat && pyasn_util_download.py --latestv4 && pyasn_util_convert.py --single rib.202* asn.dat
 #Create a new routing table
 echo '333 BENDER' >> /etc/iproute2/rt_tables
 #Move config files
@@ -61,6 +61,7 @@ Or you can run it either as a deamon or via pmacctd.<br>
 Basically pmacctd starts the route-bender.<br>
 The better option is, to just run it as a service / deamon with systemd.<br>
 
+**pmacctd**<br />
 If you wanna run route-bender with pmacctd just leave it as is, by default pmacctd starts route-bender.<br>
 You just have to enable pmacctd.<br>
 ```
@@ -68,6 +69,7 @@ systemctl enable pmacctd && systemct start pmacctd
 ```
 The default interface pmacctd listens on is called server, make sure to use that, you can edit it though.<br>
 
+**deamon**<br />
 If you wanna use route-bender as a service / deamon, you have to edit the pmacctd config file.<br>
 You have to remove the last line.<br>
 ```
