@@ -2,6 +2,7 @@ Who needs BGP when you got Route Bender 4000<br />
 JUST BEND YOUR WAY DoWN YOUr DESTINY
 
 Addon for: https://github.com/Ne00n/pipe-builder-3000/ </br>
+https://github.com/Ne00n/wg-mesh<br>
 
 ![data mining](https://i.pinimg.com/originals/ca/67/4d/ca674dde584640c77b55bcbd197575bb.gif)
 
@@ -48,6 +49,11 @@ ip6tables -t nat -A POSTROUTING -o $(ip -6 route show default | awk '/default/ {
 ```
 You can configure config/config.json based on your needs but you don't have to.<br>
 However, you have to edit config/nodes.json to add the Nodes you wish to be used for optimization.<br>
+
+For example, a Node has the IP 10.0.1.1, which for the VXLAN would be 10.0.251.1, for source based routing its 10.0.252.1<br>
+So for this node you add 10.0.252.1 to nodes.json.<br>
+
+**Make sure your wg-mesh/pipe-builder network is running and you can reach the Nodes before you continue.**<br>
 
 You can either run the route-bender manually, which I guess you don't wanna do but you still could, as mentioned in Usage.<br>
 Or you can run it either as a deamon or via pmacctd.<br>
