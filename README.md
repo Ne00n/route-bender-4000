@@ -29,6 +29,7 @@ If any exit dies, all routes will be removed once detected
 If a optimized connection has not been used for a bit, it will be removed
 
 ## Setup<br>
+For Debian/Ubuntu.<br>
 ```
 apt-get install -y pmacct git libsystemd-dev python3 python3-pip && pip3 install pyasn systemd-python netaddr pyasn
 git clone https://github.com/Ne00n/route-bender-4000.git
@@ -86,6 +87,7 @@ systemctl enable bender
 systemctl start bender
 ```
 
+## General<br>
 **Usage**<br />
 ```
 python3 bender.py
