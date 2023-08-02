@@ -87,6 +87,21 @@ systemctl enable bender
 systemctl start bender
 ```
 
+**Connecting**<br >
+In my use case, I game on a Windows machine and connect via wireguard to my Raspberry PI.<br>
+So I can toggle the optimization on and off.<br>
+
+You can run the route-bender locally or on a VPS and connect to it.<br>
+The route-bender does **NOT** run on Windows, you need a linux machine in-between.<br>
+
+By running the route-bender local, you selectively only optimize traffic where it makes sense, aka reducing latency.<br>
+Otherwise you may end up, increasing your latency in general by forcing all traffic via that VPN.<br>
+
+Every ms counts.<br>
+
+When you setup the wireguard connection on your server, make sure the interface is called "server".<br>
+So its picked up by pmacctd.<br>
+
 ## General<br>
 **Usage**<br />
 ```
@@ -144,7 +159,7 @@ Blacklist/Whitelist can be used to ignore/allow certain nodes for a specific ASN
 
 lazy is by default enabled, it will not initially optimize active connections.<br />
 
-**Config.json examples**
+**config.json examples**
 ```
 #Fastly CDN (Reddit...)
 "54113" :{"ignore":false,"ports":false,"loadBalancing":true,"force":true,"route":"dyn"}
