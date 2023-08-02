@@ -28,13 +28,14 @@ If any exit dies, all routes will be removed once detected
 - Automatic housekeeping
 If a optimized connection has not been used for a bit, it will be removed
 
-**Installation**<br />
+## Setup<br>
+For Debian/Ubuntu.<br>
 ```
 apt-get install -y pmacct git libsystemd-dev python3 python3-pip && pip3 install pyasn systemd-python netaddr pyasn
 git clone https://github.com/Ne00n/route-bender-4000.git
 cd route-bender-4000
-#Download the current asn database file
-pyasn_util_download.py --latestv4 && pyasn_util_convert.py --single rib.202* asn.dat
+#Optional, Download the current asn database file
+rm asn.dat && pyasn_util_download.py --latestv4 && pyasn_util_convert.py --single rib.202* asn.dat
 #Create a new routing table
 echo '333 BENDER' >> /etc/iproute2/rt_tables
 #Move config files
@@ -61,6 +62,7 @@ Or you can run it either as a deamon or via pmacctd.<br>
 Basically pmacctd starts the route-bender.<br>
 The better option is, to just run it as a service / deamon with systemd.<br>
 
+**pmacctd**<br />
 If you wanna run route-bender with pmacctd just leave it as is, by default pmacctd starts route-bender.<br>
 You just have to enable pmacctd.<br>
 ```
@@ -68,6 +70,7 @@ systemctl enable pmacctd && systemct start pmacctd
 ```
 The default interface pmacctd listens on is called server, make sure to use that, you can edit it though.<br>
 
+**deamon**<br />
 If you wanna use route-bender as a service / deamon, you have to edit the pmacctd config file.<br>
 You have to remove the last line.<br>
 ```
@@ -84,6 +87,22 @@ systemctl enable bender
 systemctl start bender
 ```
 
+**Connecting**<br >
+In my use case, I game on a Windows machine and connect via wireguard to my Raspberry PI.<br>
+So I can toggle the optimization on and off.<br>
+
+You can run the route-bender locally or on a VPS and connect to it.<br>
+The route-bender does **NOT** run on Windows, you need a linux machine in-between.<br>
+
+By running the route-bender local, you selectively only optimize traffic where it makes sense, aka reducing latency.<br>
+Otherwise you may end up, increasing your latency in general by forcing all traffic via that VPN.<br>
+
+Every ms counts.<br>
+
+When you setup the wireguard connection on your server, make sure the interface is called "server".<br>
+So its picked up by pmacctd.<br>
+
+## General<br>
 **Usage**<br />
 ```
 python3 bender.py
@@ -140,7 +159,7 @@ Blacklist/Whitelist can be used to ignore/allow certain nodes for a specific ASN
 
 lazy is by default enabled, it will not initially optimize active connections.<br />
 
-**Config.json examples**
+**config.json examples**
 ```
 #Fastly CDN (Reddit...)
 "54113" :{"ignore":false,"ports":false,"loadBalancing":true,"force":true,"route":"dyn"}
