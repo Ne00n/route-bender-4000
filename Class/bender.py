@@ -129,7 +129,12 @@ class Bender(Tools):
         if pingable == "0.0.0.0": return {"lbMap":lbMap,"success":False,"possible":False,"line":line,"subnet":subnet,"msg":f"Could not optimize {line['ip_dst']}, no pingable IP found"}
         #fping
         threads,latency = [],[]
-        for server in files['nodes.json']: threads.append({"server":server,"ip":pingable})
+        for server in files['nodes.json']: 
+            lastByte = server.split(".")
+            if lastByte[len(lastByte) -1] in files['status.json'] and files['status.json'][lastByte[len(lastByte) -1]]['offline']:
+                logging.debug(f"Skipping fping for {server}")
+                continue
+            threads.append({"server":server,"ip":pingable})
         #dispatch
         pool = multiprocessing.Pool(processes = int(len(files['nodes.json']) / 3))
         results = pool.map(Bender.fpingWorker, threads)
@@ -397,8 +402,9 @@ class Bender(Tools):
                         vxlan = "vxlan1" if IPAddress(data['ip']).version == 4 else "vxlan1v6"
                         self.cmd(f'ip route del {entry} via {node} dev {vxlan} table BENDER')
                         #Remove from history.json
-                        logging.debug(f"Removing {data['subnet']} from history.json")
-                        if entry in self.files['history.json']: del self.files['history.json'][data['subnet']]
+                        if entry in self.files['history.json']: 
+                            logging.debug(f"Removing {data['subnet']} from history.json")
+                            del self.files['history.json'][data['subnet']]
                         break
             options = options.copy()
             #Check for rounds limit
@@ -407,6 +413,10 @@ class Bender(Tools):
                 logging.info(f"Analyzing {data['ip']}")
             else:
                 logging.info(f"Removing {data['ip']} from history due to inactivity")
+                #Remove from history.json in case the route does not exist anymore or has been cleared
+                if data['subnet'] in self.files['history.json']:
+                    logging.debug(f"Removing {data['subnet']} from history.json due to inactivity")
+                    del self.files['history.json'][data['subnet']]
         #dispatch
         pool = Pool(max_workers = self.files['config.json']['threads'])
         results = pool.map(self.magic, threads)

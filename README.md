@@ -2,6 +2,7 @@ Who needs BGP when you got Route Bender 4000<br />
 JUST BEND YOUR WAY DoWN YOUr DESTINY
 
 Addon for: https://github.com/Ne00n/pipe-builder-3000/ </br>
+https://github.com/Ne00n/wg-mesh<br>
 
 ![data mining](https://i.pinimg.com/originals/ca/67/4d/ca674dde584640c77b55bcbd197575bb.gif)
 
@@ -15,7 +16,7 @@ Getting lower latency while gaming online
 - Automatic Latency optimization<br >
 Just game seriously
 - Cutting Edge Latency detection<br>
-In case a IP does not like to ping, it will MTR it, plus some other stuff
+In case a IP does not like to ping, it will MTR it, ask plugins and plus some other stuff
 - Cutting Edge rebending on idle connections<br >
 If a connection is idle, it will be rebended after x hours to offer the lowest latency
 - Rebending Protection on active connections<br >
@@ -24,23 +25,63 @@ If a connection cannot be optimized currently, it will be ignored until idle
 Won't bend if Packetloss is detected over a specific route
 - Pray & Disconnect if exit dies<br >
 If any exit dies, all routes will be removed once detected
+- Automatic housekeeping
+If a optimized connection has not been used for a bit, it will be removed
 
-**Prepare**<br />
+**Installation**<br />
 ```
+apt-get install -y pmacct git libsystemd-dev python3 python3-pip && pip3 install pyasn systemd-python netaddr pyasn
+git clone https://github.com/Ne00n/route-bender-4000.git
+cd route-bender-4000
+#Download the current asn database file
+pyasn_util_download.py --latestv4 && pyasn_util_convert.py --single rib.202* asn.dat
+#Create a new routing table
 echo '333 BENDER' >> /etc/iproute2/rt_tables
+#Move config files
 cp config/pmacctd.conf /etc/pmacct/
 cp config/nodes.example.json config/nodes.json
 cp config/config.example.json config/config.json
+#Enable NAT for vxlan and the default interface
 ip6tables -t nat -A POSTROUTING -o vxlan1v6 -j MASQUERADE
 iptables -t nat -A POSTROUTING -o vxlan1 -j MASQUERADE
-ip6tables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
-iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+iptables -t nat -A POSTROUTING -o $(ip route show default | awk '/default/ {{print $5}}' | tail -1) -j MASQUERADE
+ip6tables -t nat -A POSTROUTING -o $(ip -6 route show default | awk '/default/ {{print $5}}' | tail -1) -j MASQUERADE
 ```
-Configure config.json based on your needs + edit nodes.json
+You can configure config/config.json based on your needs but you don't have to.<br>
+However, you have to edit config/nodes.json to add the Nodes you wish to be used for optimization.<br>
 
-**Dependencies**<br />
+For example, a Node has the IP 10.0.1.1, which for the VXLAN would be 10.0.251.1, for source based routing its 10.0.252.1<br>
+So for this node you add 10.0.252.1 to nodes.json.<br>
+
+**Make sure your wg-mesh/pipe-builder network is running and you can reach the Nodes before you continue.**<br>
+
+You can either run the route-bender manually, which I guess you don't wanna do but you still could, as mentioned in Usage.<br>
+Or you can run it either as a deamon or via pmacctd.<br>
+
+Basically pmacctd starts the route-bender.<br>
+The better option is, to just run it as a service / deamon with systemd.<br>
+
+If you wanna run route-bender with pmacctd just leave it as is, by default pmacctd starts route-bender.<br>
+You just have to enable pmacctd.<br>
 ```
-apt-get install -y pmacct python3 python3-pip && pip3 install pyasn
+systemctl enable pmacctd && systemct start pmacctd
+```
+The default interface pmacctd listens on is called server, make sure to use that, you can edit it though.<br>
+
+If you wanna use route-bender as a service / deamon, you have to edit the pmacctd config file.<br>
+You have to remove the last line.<br>
+```
+print_trigger_exec[print]: /root/route-bender-4000/bender.py
+```
+And restart pmacctd.<br>
+```
+systemct restart pmacctd
+```
+Copy the systemd service file and start the service.<br>
+```
+cp config/bender.service /etc/systemd/system/
+systemctl enable bender
+systemctl start bender
 ```
 
 **Usage**<br />
@@ -97,7 +138,7 @@ This works for fine for some Networks like AWS but can cause problems with other
 
 Blacklist/Whitelist can be used to ignore/allow certain nodes for a specific ASN.<br />
 
-lazy by default enabled, will not initially optimize active connections.<br />
+lazy is by default enabled, it will not initially optimize active connections.<br />
 
 **Config.json examples**
 ```
