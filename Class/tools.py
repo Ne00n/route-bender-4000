@@ -107,6 +107,8 @@ class Tools:
     def getAvrg(row):
         result = 0
         if not row: return 65000
+        #if we found packet loss abort
+        if float(row[len(row) -1][1]) > 0: return 64000
         for entry in row:
             #ignore timed out
             if entry[0] == "timed out": continue
