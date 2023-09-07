@@ -429,14 +429,14 @@ class Bender(Tools):
             logging.info(result['msg'])
             if result['subnet'] not in self.files['history.json']: self.files['history.json'][result['subnet']] = {}
             if result['possible'] == True and result['success'] == False:
-                #wait 4-8 hours before re-check, latency difference wasn't high enough or direct was better
-                expiry = int(datetime.now().timestamp()) + random.randint(14400, 28800)
+                #wait 8-12 hours before re-check, latency difference wasn't high enough or direct was better
+                expiry = int(datetime.now().timestamp()) + random.randint(3600 * 8, 3600 * 12)
             elif result['possible'] == False:
-                #wait 12-24 hours before re-check, since we could not optimize / no pingable ip
-                expiry = int(datetime.now().timestamp()) + random.randint(43200, 86400)
+                #wait 20-24 hours before re-check, since we could not optimize / no pingable ip
+                expiry = int(datetime.now().timestamp()) + random.randint(3600 * 20, 3600 * 24)
             else:
-                #wait 2-6 hours before re-check
-                expiry = int(datetime.now().timestamp()) + random.randint(7200, 21600)
+                #wait 6-10 hours before re-check
+                expiry = int(datetime.now().timestamp()) + random.randint(3600 * 6, 3600 * 10)
             rounds += 1 if line['bytes'] == 0 else 0
             self.files['history.json'][result['subnet']] = {'ip':line['ip_dst'],'port':line['port_dst'],'bytes':0,'lastBytes':0,'rounds':rounds,'expiry':expiry}
             #loadbalancing
