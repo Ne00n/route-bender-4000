@@ -67,7 +67,7 @@ class Bender(Tools):
                 self.cmd(f'ip rule add from 10.0.252.{lastByte[0][1]}/32 table Node{node}')
                 self.cmd(f'ip -6 rule add from fc10:252::{lastByte[0][1]}/128 table Node{node}')
                 self.cmd(f'ip route add default via 10.0.251.{lastByte[0][1]} table Node{node}')
-                self.cmd(f'ip -6 route add default via fc10:251::{lastByte[0][1]} table Node{node}')
+                self.cmd(f'ip -6 route add default via fd10:251::{lastByte[0][1]} table Node{node}')
 
     def clear(self):
         print("Flushing Routing Table...")
