@@ -69,8 +69,12 @@ class Tools:
         mtr = Tools.cmd('mtr '+target+' --report --report-cycles 3 --no-dns')
         ips = re.findall("-- ([0-9a-z.:]+)",mtr[0], re.MULTILINE)
         ips = ips if len(ips) < 4 else ips[len(ips) -3:]
-        for ip in list(ips): 
-            if IPAddress(ip).is_private(): ips.remove(ip)
+        for ip in list(ips):
+            #for some reason private IPv6 addresses make it crash
+            try: 
+                if IPAddress(ip).is_private(): ips.remove(ip)
+            except:
+                ips.remove(ip)
         if not ips: return "0.0.0.0",""
         results = Tools.fping(ips)
         latency = Tools.getAvrgAll(results)
