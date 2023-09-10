@@ -179,7 +179,7 @@ class Bender(Tools):
                 dest = f"10.0.251.{latency[0][1]}"
                 Bender.cmd(f'ip route add {subnet} via {dest} dev vxlan1 table BENDER')
             else:
-                dest = f"fc10:251::{latency[0][1]}"
+                dest = f"fd10:251::{latency[0][1]}"
                 Bender.cmd(f'ip -6 route add {subnet} via {dest} dev vxlan1v6 table BENDER')
         return {"lbMap":lbMap,"success":True,"possible":True,"line":line,"subnet":subnet,"msg":f"Routed {line['ip_dst']} ({subnet}) via {dest} improved latency by {round(diff,1)}ms"}
         
@@ -196,7 +196,7 @@ class Bender(Tools):
             routes = Bender.cmd('ip route show table BENDER via 10.0.251.'+lastByte[0][1])[0]
             parsedIPv4 = re.findall("^([0-9.\/]+)",routes, re.MULTILINE | re.DOTALL)
             #IPv6
-            routes = Bender.cmd(f'ip -6 route show table BENDER via fc10:251::{lastByte[0][1]}')[0]
+            routes = Bender.cmd(f'ip -6 route show table BENDER via fd10:251::{lastByte[0][1]}')[0]
             parsedIPv6 = re.findall("^([a-z0-9:.\/]+)",routes, re.MULTILINE | re.DOTALL)
         return {"isDown":isDown,"lastByte":lastByte[0][1],"parsed":parsedIPv4},{"isDown":isDown,"lastByte":lastByte[0][1],"parsed":parsedIPv6}
 
@@ -470,7 +470,7 @@ class Bender(Tools):
                         logging.warning(f"Pulling {len(protocol['parsed'])} routes")
                         for entry in protocol['parsed']:
                             logging.debug(f"Removing {entry} from routing table")
-                            via = "10.0.251." if index == 0 else "fc10:251::"
+                            via = "10.0.251." if index == 0 else "fd10:251::"
                             prot = "-4" if index == 0 else "-6"
                             Bender.cmd(f'ip {prot} route del {entry} via {via}{lastByte} dev vxlan1 table BENDER')
                             if entry in self.files['history.json']: 
