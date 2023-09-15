@@ -136,7 +136,9 @@ class Bender(Tools):
                 continue
             threads.append({"server":server,"ip":pingable})
         #dispatch
-        pool = multiprocessing.Pool(processes = int(len(files['nodes.json']) / 3))
+        processThreads = int(len(files['nodes.json']) / 3)
+        if processThreads < 1: processThreads = 1
+        pool = multiprocessing.Pool(processes = processThreads)
         results = pool.map(Bender.fpingWorker, threads)
         #wait for everything
         pool.close()
