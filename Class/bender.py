@@ -448,7 +448,9 @@ class Bender(Tools):
         nodeThreads,online = [],0
         for server in self.files['nodes.json']: nodeThreads.append(server)
         #dispatch
-        pool = multiprocessing.Pool(processes = round(len(nodeThreads) / 2))
+        processThreads = round(len(nodeThreads) / 2)
+        if processThreads < 1: processThreads = 1
+        pool = multiprocessing.Pool(processes = processThreads)
         results = pool.map(self.checkNode, nodeThreads)
         #wait for everything
         pool.close()
