@@ -174,7 +174,7 @@ class Bender(Tools):
         if diff < 2 and diff > 0 and options["force"] == False:
             return {"lbMap":lbMap,"success":False,"possible":True,"line":line,"subnet":subnet,"msg":f"Difference less than 2ms, skipping {float(direct)} vs {float(latency[0][0])} for {line['ip_dst']}"}
         elif diff < 2 and options["force"] == False:
-            return {"lbMap":lbMap,"success":False,"possible":True,"line":line,"subnet":subnet,"msg":f"Direct route is better, keeping it for {line['ip_dst']} Lowest we got {float(latency[0][0])}ms vs {int(direct)}ms direct"}
+            return {"lbMap":lbMap,"success":False,"possible":True,"line":line,"subnet":subnet,"msg":f"Direct route is better, keeping {line['ip_dst']} Lowest we got {float(latency[0][0])}ms vs {int(direct)}ms direct"}
         elif float(latency[0][0]) < int(direct) or options["force"] == True:
             #Run
             if IPNetwork(subnet).version == 4:
