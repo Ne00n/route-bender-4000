@@ -42,6 +42,7 @@ echo '333 BENDER' >> /etc/iproute2/rt_tables
 cp config/pmacctd.conf /etc/pmacct/
 cp config/nodes.example.json config/nodes.json
 cp config/config.example.json config/config.json
+systemctl enable pmacctd && systemctl start pmacctd
 #Enable NAT for vxlan and the default interface
 ip6tables -t nat -A POSTROUTING -o vxlan1v6 -j MASQUERADE
 iptables -t nat -A POSTROUTING -o vxlan1 -j MASQUERADE
