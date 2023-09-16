@@ -268,13 +268,6 @@ class Bender(Tools):
             else:
                 asnList.append(asn)
                 base = self.files['config.json']['ASN'][asn] if asn in self.files['config.json']['ASN'] else options
-            if group != False and base['loadBalancing'] == False and group['asns'] in asnList and group['asns'] not in self.files['loadBalancing.json']: return False,[None,None],[]
-            if asn in self.files['config.json']['ASN'] and base['loadBalancing'] == False and asn in asnList and asn not in self.files['loadBalancing.json']: return False,[None,None],[]            
-            #Check Ignore
-            if base['ignore'] == True: return False,[None,None],[]
-            #Filter Ports
-            if base['ports'] == True:
-                if line['port_dst'] in self.files['config.json']['ignorePorts']: return False,[None,None],[]
             #Check Options
             if not "loadBalancing" in base: base['loadBalancing'] = True
             if not "force" in base: base['force'] = False
@@ -282,6 +275,14 @@ class Bender(Tools):
             if not "whitelist" in base: base['whitelist'] = []
             if not "blacklist" in base: base['blacklist'] = []
             if not "route" in base: base['route'] = "/24"
+            #Block any other concurrent optimizations until the first one is done if load balancing is disabled
+            if group != False and base['loadBalancing'] == False and group['asns'] in asnList and group['asns'] not in self.files['loadBalancing.json']: return False,[None,None],[]
+            if asn in self.files['config.json']['ASN'] and base['loadBalancing'] == False and asn in asnList and asn not in self.files['loadBalancing.json']: return False,[None,None],[]            
+            #Check Ignore
+            if base['ignore'] == True: return False,[None,None],[]
+            #Filter Ports
+            if base['ports'] == True:
+                if line['port_dst'] in self.files['config.json']['ignorePorts']: return False,[None,None],[]
             #Subnet
             if base['route'] == "/32":
                 base['subnet'] = f"{line['ip_dst']}/32" if IPAddress(line['ip_dst']).version == 4 else f"{line['ip_dst']}/128"
