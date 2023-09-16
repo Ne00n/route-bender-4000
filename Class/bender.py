@@ -276,6 +276,7 @@ class Bender(Tools):
             if not "blacklist" in base: base['blacklist'] = []
             if not "route" in base: base['route'] = "/24"
             if not "ignore" in base: base['ignore'] = False
+            if not "ports" in base: base["ports"] = True
             #Block any other concurrent optimizations until the first one is done if load balancing is disabled
             if group != False and base['loadBalancing'] == False and group['asns'] in asnList and group['asns'] not in self.files['loadBalancing.json']: return False,[None,None],[]
             if asn in self.files['config.json']['ASN'] and base['loadBalancing'] == False and asn in asnList and asn not in self.files['loadBalancing.json']: return False,[None,None],[]            
