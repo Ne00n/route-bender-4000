@@ -268,8 +268,8 @@ class Bender(Tools):
             else:
                 asnList.append(asn)
                 base = self.files['config.json']['ASN'][asn] if asn in self.files['config.json']['ASN'] else options
-            if group != False and self.files['config.json']['ASNGroups'][group['asns']]['loadBalancing'] == False and group['asns'] in asnList and group['asns'] not in self.files['loadBalancing.json']: return False,[None,None],[]
-            if asn in self.files['config.json']['ASN'] and self.files['config.json']['ASN'][asn]['loadBalancing'] == False and asn in asnList and asn not in self.files['loadBalancing.json']: return False,[None,None],[]            
+            if group != False and base['loadBalancing'] == False and group['asns'] in asnList and group['asns'] not in self.files['loadBalancing.json']: return False,[None,None],[]
+            if asn in self.files['config.json']['ASN'] and base['loadBalancing'] == False and asn in asnList and asn not in self.files['loadBalancing.json']: return False,[None,None],[]            
             #Check Ignore
             if base['ignore'] == True: return False,[None,None],[]
             #Filter Ports
