@@ -207,7 +207,7 @@ class Bender(Tools):
         print(f"Using options {options}")
         print("Running fping")
         pingable,avg = self.mtrIP(ip,options,asndata)
-        print(f"Using {pingable} instead of {ip}")
+        if pingable != ip: print(f"Using {pingable} instead of {ip}")
         if pingable == "0.0.0.0": exit()
         ip = pingable
         #fping
