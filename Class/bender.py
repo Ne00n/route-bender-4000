@@ -200,7 +200,7 @@ class Bender(Tools):
             #IPv6
             routes = Bender.cmd(f'ip -6 route show table BENDER via fd10:251::{lastByte[0][1]}')[0]
             parsedIPv6 = re.findall("^([a-z0-9:.\/]+)",routes, re.MULTILINE | re.DOTALL)
-        return {"isDown":isDown,"lastByte":lastByte[0][1],"parsed":parsedIPv4},{"isDown":isDown,"lastByte":lastByte[0][1],"parsed":parsedIPv6}
+        return {"isDown":isDown,"lastByte":lastByte[0][1],"parsed":parsedIPv4,"direct":direct},{"isDown":isDown,"lastByte":lastByte[0][1],"parsed":parsedIPv6,"direct":direct}
 
     def debug(self,ip,port):
         options,asndata,asnList = self.asnLookUp([],{"ip_dst":ip,"port_dst":port})
@@ -472,7 +472,12 @@ class Bender(Tools):
             for response in results:
                 for index, protocol in enumerate(response):
                     lastByte = protocol['lastByte']
-                    if not lastByte in self.files['status.json']: self.files['status.json'][lastByte] = {"offline":0}
+                    if not lastByte in self.files['status.json']: self.files['status.json'][lastByte] = {"offline":0,"pings":{}}
+                    if index == 0:
+                        parsed = re.findall("max = [0-9.]+\/([0-9.]+)",protocol['direct'], re.MULTILINE | re.DOTALL)
+                        self.files['status.json'][lastByte]["pings"][int(time.time())] = float(parsed[0])
+                        for timestamp,ping in list(self.files['status.json'][lastByte]["pings"].items()):
+                            if time.time() > (timestamp + 300): del self.files['status.json'][lastByte]["pings"][timestamp]
                      #wait for the second confirmation / run before we pull any routes
                     if protocol['parsed'] and self.files['status.json'][lastByte]['offline']:
                         logging.warning(f"Pulling {len(protocol['parsed'])} routes")
