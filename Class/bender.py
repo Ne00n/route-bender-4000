@@ -477,7 +477,7 @@ class Bender(Tools):
                         parsed = re.findall("max = [0-9.]+\/([0-9.]+)",protocol['direct'], re.MULTILINE | re.DOTALL)
                         self.files['status.json'][lastByte]["pings"][int(time.time())] = float(parsed[0])
                         for timestamp,ping in list(self.files['status.json'][lastByte]["pings"].items()):
-                            if time.time() > (timestamp + 300): del self.files['status.json'][lastByte]["pings"][timestamp]
+                            if time.time() > (float(timestamp) + 300): del self.files['status.json'][lastByte]["pings"][timestamp]
                      #wait for the second confirmation / run before we pull any routes
                     if protocol['parsed'] and self.files['status.json'][lastByte]['offline']:
                         logging.warning(f"Pulling {len(protocol['parsed'])} routes")
