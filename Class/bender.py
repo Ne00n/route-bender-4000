@@ -373,7 +373,7 @@ class Bender(Tools):
                 options = options.copy()
                 if self.files['config.json']['lazy']:
                     if options['subnet'] not in self.files['history.json']: self.files['history.json'][options['subnet']] = {}
-                    deadline = int(datetime.now().timestamp()) + 900
+                    deadline = int(datetime.now().timestamp()) + 300
                     self.files['history.json'][options['subnet']] = {'ip':line['ip_dst'],'port':line['port_dst'],'bytes':line['bytes'],'lastBytes':line['bytes'],'rounds':0,'expiry':deadline}
                     logging.info(f"Lazy {line['ip_dst']}")
                 else:
