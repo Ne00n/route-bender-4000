@@ -1,5 +1,5 @@
 from concurrent.futures import ProcessPoolExecutor as Pool
-import systemd.daemon, random, logging, pyasn, signal, time, json, sys, re, os
+import systemd.daemon, random, logging, pyasn, signal, copy, time, json, sys, re, os
 from logging.handlers import RotatingFileHandler
 from netaddr import IPNetwork, IPAddress
 from ipaddress import ip_network
@@ -370,15 +370,15 @@ class Bender(Tools):
                 continue
             #Limit of current checks, to keep cpu load in okay levels to prevent lags
             if len(threads) <= self.files['config.json']['threads']:
-                options = options.copy()
+                tmpOptions = copy.deepcopy(options)
                 if self.files['config.json']['lazy']:
-                    if options['subnet'] not in self.files['history.json']: self.files['history.json'][options['subnet']] = {}
+                    if tmpOptions['subnet'] not in self.files['history.json']: self.files['history.json'][tmpOptions['subnet']] = {}
                     deadline = int(datetime.now().timestamp()) + 300
-                    self.files['history.json'][options['subnet']] = {'ip':line['ip_dst'],'port':line['port_dst'],'bytes':line['bytes'],'lastBytes':line['bytes'],'rounds':0,'expiry':deadline}
+                    self.files['history.json'][tmpOptions['subnet']] = {'ip':line['ip_dst'],'port':line['port_dst'],'bytes':line['bytes'],'lastBytes':line['bytes'],'rounds':0,'expiry':deadline}
                     logging.info(f"Lazy {line['ip_dst']}")
                 else:
                     line['lastBytes'],line['rounds'] = 0,0
-                    threads.append({"subnet":options['subnet'],"line":line,"options":options,"asndata":asndata,"files":self.files})
+                    threads.append({"subnet":tmpOptions['subnet'],"line":line,"options":tmpOptions,"asndata":asndata,"files":self.files})
                     logging.info(f"Analyzing {line['ip_dst']}")
         history = self.history(activeSubnets)
         logging.debug("Checking history")
@@ -390,6 +390,7 @@ class Bender(Tools):
             #Filter ASN if loadBalancing... is disabled/enabled
             line = {"ip_dst":data['ip'],"port_dst":data['port'],"bytes":data['bytes'],"lastBytes":data['lastBytes'],'rounds':data['rounds']}
             options,asndata,asnList = self.asnLookUp(asnList,line)
+            tmpOptions = copy.deepcopy(options)
             if options == False: continue
             #Check for existing route
             route = self.cmd(f"ip r get {data['ip']}")[0]
@@ -413,10 +414,9 @@ class Bender(Tools):
                             logging.debug(f"Removing {data['subnet']} from history.json")
                             del self.files['history.json'][data['subnet']]
                         break
-            options = options.copy()
             #Check for rounds limit
             if line['rounds'] <= self.files['config.json']['rounds']:
-                threads.append({"subnet":options['subnet'],"line":line,"options":options,"asndata":asndata,"files":self.files})
+                threads.append({"subnet":tmpOptions['subnet'],"line":line,"options":tmpOptions,"asndata":asndata,"files":self.files})
                 logging.info(f"Analyzing {data['ip']}")
             else:
                 logging.info(f"Removing {data['ip']} from history due to inactivity")
