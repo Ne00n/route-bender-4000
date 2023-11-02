@@ -352,14 +352,15 @@ class Bender(Tools):
             options,asndata,asnList = self.asnLookUp(asnList,line)
             #if ignored = True or ports in ignorePorts
             if options == False: continue
+            tmpOptions = copy.deepcopy(options)
             #tracking active subnets, preventing re-optimizing active links
-            activeSubnets.append(options['subnet'])
+            activeSubnets.append(tmpOptions['subnet'])
             #Skip if already in history
             if options['subnet'] in self.files['history.json']: 
                 diff = line['bytes'] - self.files['history.json'][options['subnet']]['lastBytes']
                 if diff >= 0:
-                    self.files['history.json'][options['subnet']]['bytes'] += diff
-                self.files['history.json'][options['subnet']]['lastBytes'] = line['bytes']
+                    self.files['history.json'][tmpOptions['subnet']]['bytes'] += diff
+                self.files['history.json'][tmpOptions['subnet']]['lastBytes'] = line['bytes']
                 continue
             #Skip if listed in ignoreSubnets
             if options['subnet'] in self.files['config.json']['ignoreSubnets']: continue
@@ -370,7 +371,6 @@ class Bender(Tools):
                 continue
             #Limit of current checks, to keep cpu load in okay levels to prevent lags
             if len(threads) <= self.files['config.json']['threads']:
-                tmpOptions = copy.deepcopy(options)
                 if self.files['config.json']['lazy']:
                     if tmpOptions['subnet'] not in self.files['history.json']: self.files['history.json'][tmpOptions['subnet']] = {}
                     deadline = int(datetime.now().timestamp()) + 300
