@@ -57,7 +57,10 @@ class Tools:
                 host = f" {ip[:-1]}{entry}" if IPAddress(ip).version == 4 else f" {ip}{entry}"
                 targets.append(host)
         results = Tools.fping(targets)
-        avg = Tools.getAvrg(results[target])
+        if results[target]:
+            avg = Tools.getAvrg(results[target])
+        else:
+            avg = 65000
         if avg != 65000: return target, avg
         data = Tools.hook('unreachable',target)
         if data:
