@@ -57,7 +57,7 @@ class Tools:
                 host = f" {ip[:-1]}{entry}" if IPAddress(ip).version == 4 else f" {ip}{entry}"
                 targets.append(host)
         results = Tools.fping(targets)
-        if results[target]:
+        if results:
             avg = Tools.getAvrg(results[target])
         else:
             avg = 65000
