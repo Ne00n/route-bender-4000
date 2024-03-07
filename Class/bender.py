@@ -81,7 +81,7 @@ class Bender(Tools):
         for route in routes:
             print(route)
 
-    def stats(self):73
+    def stats(self):
         print("Stats")
         routes = self.cmd('ip route show table BENDER')[0]
         routes = routes.splitlines()
