@@ -81,7 +81,7 @@ class Bender(Tools):
         for route in routes:
             print(route)
 
-    def stats(self):
+    def stats(self):73
         print("Stats")
         routes = self.cmd('ip route show table BENDER')[0]
         routes = routes.splitlines()
@@ -476,7 +476,10 @@ class Bender(Tools):
                     if not lastByte in self.files['status.json']: self.files['status.json'][lastByte] = {"offline":0,"pings":{}}
                     if index == 0:
                         parsed = re.findall("max = [0-9.]+\/([0-9.]+)",protocol['direct'], re.MULTILINE | re.DOTALL)
-                        self.files['status.json'][lastByte]["pings"][int(time.time())] = float(parsed[0])
+                        if parsed:
+                            self.files['status.json'][lastByte]["pings"][int(time.time())] = float(parsed[0])
+                        else:
+                            self.files['status.json'][lastByte]["pings"][int(time.time())] = 0
                         for timestamp,ping in list(self.files['status.json'][lastByte]["pings"].items()):
                             if time.time() > (float(timestamp) + 300): del self.files['status.json'][lastByte]["pings"][timestamp]
                      #wait for the second confirmation / run before we pull any routes
