@@ -193,7 +193,7 @@ class Bender(Tools):
         isDown = '100%' in direct
         if isDown:
             logging.debug(direct)
-            logging.warning(f"10.0.251.{lastByte[0][1]} is down")
+            logging.debug(f"10.0.251.{lastByte[0][1]} is down")
             #IPv4
             routes = Bender.cmd('ip route show table BENDER via 10.0.251.'+lastByte[0][1])[0]
             parsedIPv4 = re.findall("^([0-9.\/]+)",routes, re.MULTILINE | re.DOTALL)
@@ -495,8 +495,10 @@ class Bender(Tools):
                                 del self.files['history.json'][entry]
                     if response[0]['isDown']:
                         self.files['status.json'][lastByte]['offline'] = 1
+                        logging.warning(f"10.0.251.{lastByte} is Online.")
                     else:
                         self.files['status.json'][lastByte]['offline'] = 0
+                        logging.warning(f"10.0.251.{lastByte} is offline.")
         #updating json files
         saving = ['loadBalancing.json','history.json','status.json']
         for entry in saving:
