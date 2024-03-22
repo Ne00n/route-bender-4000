@@ -494,11 +494,11 @@ class Bender(Tools):
                                 logging.debug(f"Removing {entry} from history.json")
                                 del self.files['history.json'][entry]
                     if response[0]['isDown']:
+                        if self.files['status.json'][lastByte]['offline'] == 0: logging.warning(f"10.0.251.{lastByte} is Offline.")
                         self.files['status.json'][lastByte]['offline'] = 1
-                        logging.warning(f"10.0.251.{lastByte} is Online.")
                     else:
+                        if self.files['status.json'][lastByte]['offline'] == 1: logging.warning(f"10.0.251.{lastByte} is Online.")
                         self.files['status.json'][lastByte]['offline'] = 0
-                        logging.warning(f"10.0.251.{lastByte} is offline.")
         #updating json files
         saving = ['loadBalancing.json','history.json','status.json']
         for entry in saving:
