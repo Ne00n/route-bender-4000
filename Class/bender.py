@@ -484,7 +484,7 @@ class Bender(Tools):
                             if time.time() > (float(timestamp) + 300): del self.files['status.json'][lastByte]["pings"][timestamp]
                      #wait for the second confirmation / run before we pull any routes
                     if protocol['parsed'] and self.files['status.json'][lastByte]['offline']:
-                        logging.warning(f"Pulling {len(protocol['parsed'])} routes")
+                        logging.warning(f"Pulling {len(protocol['parsed'])} routes for {lastByte}")
                         for entry in protocol['parsed']:
                             logging.debug(f"Removing {entry} from routing table")
                             via = "10.0.251." if index == 0 else "fd10:251::"
