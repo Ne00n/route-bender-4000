@@ -496,6 +496,7 @@ class Bender(Tools):
                     if response[0]['isDown']:
                         if self.files['status.json'][lastByte]['offline'] == 0: logging.warning(f"10.0.251.{lastByte} is Offline.")
                         self.files['status.json'][lastByte]['offline'] = 1
+                        break
                     else:
                         if self.files['status.json'][lastByte]['offline'] == 1: logging.warning(f"10.0.251.{lastByte} is Online.")
                         self.files['status.json'][lastByte]['offline'] = 0
