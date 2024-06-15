@@ -1,6 +1,6 @@
 import requests
 
-class ping():
+class geo():
     
     def __init__(self):
         print("Loading ping.py")
@@ -9,14 +9,14 @@ class ping():
         return True
 
     def unreachable(self,ip):
+        return False
+
+    def geo(self,ip):
         try:
-            req = requests.get(f"https://ping.serv.app/{ip}", timeout=(3, 3))
+            req = requests.get(f"https://geo.serv.app/{ip}", timeout=(3, 3))
             if req.status_code == 200:
                 data = req.json()
                 return data['ips']
             return False
         except Exception as err:
             return False
-
-    def geo(self):
-        return False

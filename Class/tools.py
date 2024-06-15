@@ -29,7 +29,7 @@ class Tools:
         for plugin in Tools.plugins:
             tmpPlugin = getattr(Tools.plugins[plugin], plugin)
             result = getattr(tmpPlugin, event)(tmpPlugin,target)
-            return result
+            if result: return result
         return False
 
     @staticmethod
@@ -84,6 +84,12 @@ class Tools:
         latency = dict(sorted(latency.items(), key=lambda item: item[1], reverse=True))
         for ip,ms in latency.items(): 
             if ms != 65000: return ip,ms
+        data = Tools.hook('geo',target)
+        if data:
+            results = Tools.fping(data)
+            latency = Tools.getAvrgAll(results)
+            first = next(iter(latency))
+            if latency[first] != 65000: return first,latency[first]
         return "0.0.0.0",""
 
     @staticmethod
