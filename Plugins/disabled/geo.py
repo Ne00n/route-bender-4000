@@ -16,7 +16,8 @@ class geo():
             req = requests.get(f"https://geo.serv.app/{ip}", timeout=(3, 3))
             if req.status_code == 200:
                 data = req.json()
-                return data['ips']
+                highest = data['highest']
+                if data['score'][highest] > 90: return data['ips']
             return False
         except Exception as err:
             return False
