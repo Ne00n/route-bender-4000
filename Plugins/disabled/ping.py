@@ -18,5 +18,5 @@ class ping():
         except Exception as err:
             return False
 
-    def geo(self):
+    def geo(self,ip):
         return False
