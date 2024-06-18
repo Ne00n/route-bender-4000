@@ -17,7 +17,7 @@ class geo():
             if req.status_code == 200:
                 data = req.json()
                 highest = data['highest']
-                if data['score'][highest] > 90: return data['ips']
+                if data['score'] and data['score'][highest] > 90: return data['ips']
             return False
         except Exception as err:
             return False
