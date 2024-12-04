@@ -95,7 +95,7 @@ class Tools:
     @staticmethod
     def fpingSource(server,ip,pings = 6):
         lastByte = re.findall("^([0-9.]+)\.([0-9]+)",server, re.MULTILINE | re.DOTALL)
-        server = server if IPAddress(ip).version == 4 else server.replace("10.0.252.","fc10:252::")
+        server = server if IPAddress(ip).version == 4 else server.replace("10.0.255.","fc10:255::")
         if server == "direct":
             results = Tools.fping([ip],6)
         else:

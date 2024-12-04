@@ -51,7 +51,7 @@ class Bender(Tools):
         logging.debug("Prepare")
         base = 400
         tables = re.findall("^([0-9]+)",self.cmd('cat /etc/iproute2/rt_tables')[0], re.MULTILINE | re.DOTALL)
-        inetList = re.findall("(10[0-9.]+?252\.[0-9]+)",self.cmd('ip addr show lo')[0], re.MULTILINE)
+        inetList = re.findall("(10[0-9.]+?255\.[0-9]+)",self.cmd('ip addr show lo')[0], re.MULTILINE)
         route = self.cmd("ip rule list table BENDER all")[0]
         if not "BENDER" in route:
             self.cmd('ip rule add from 0.0.0.0/0 table BENDER')
@@ -61,11 +61,11 @@ class Bender(Tools):
             node = str(base + int(lastByte[0][1]))
             if node not in tables:
                 self.cmd(["echo '"+node+" Node"+node+"' >> /etc/iproute2/rt_tables"])
-            if "10.0.252."+lastByte[0][1] not in inetList:
-                self.cmd(f'ip addr add 10.0.252.{lastByte[0][1]}/32 dev lo')
-                self.cmd(f'ip -6 addr add fc10:252::{lastByte[0][1]}/128 dev lo')
-                self.cmd(f'ip rule add from 10.0.252.{lastByte[0][1]}/32 table Node{node}')
-                self.cmd(f'ip -6 rule add from fc10:252::{lastByte[0][1]}/128 table Node{node}')
+            if "10.0.255."+lastByte[0][1] not in inetList:
+                self.cmd(f'ip addr add 10.0.255.{lastByte[0][1]}/32 dev lo')
+                self.cmd(f'ip -6 addr add fc10:255::{lastByte[0][1]}/128 dev lo')
+                self.cmd(f'ip rule add from 10.0.255.{lastByte[0][1]}/32 table Node{node}')
+                self.cmd(f'ip -6 rule add from fc10:255::{lastByte[0][1]}/128 table Node{node}')
                 self.cmd(f'ip route add default via 10.0.251.{lastByte[0][1]} table Node{node}')
                 self.cmd(f'ip -6 route add default via fd10:251::{lastByte[0][1]} table Node{node}')
 
