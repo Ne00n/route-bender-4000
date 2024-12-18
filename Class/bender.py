@@ -372,7 +372,10 @@ class Bender(Tools):
             #Limit of current checks, to keep cpu load in okay levels to prevent lags
             if len(threads) <= self.files['config.json']['threads']:
                 if self.files['config.json']['lazy']:
-                    if tmpOptions['subnet'] not in self.files['history.json']: self.files['history.json'][tmpOptions['subnet']] = {}
+                    if tmpOptions['subnet'] not in self.files['history.json']: 
+                        #Filter minBytes
+                        if line['bytes'] < self.files['config.json']['minBytes']: continue
+                        self.files['history.json'][tmpOptions['subnet']] = {}
                     deadline = int(datetime.now().timestamp()) + 300
                     self.files['history.json'][tmpOptions['subnet']] = {'ip':line['ip_dst'],'port':line['port_dst'],'bytes':line['bytes'],'lastBytes':line['bytes'],'rounds':0,'expiry':deadline}
                     logging.info(f"Lazy {line['ip_dst']}")
