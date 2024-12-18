@@ -374,7 +374,9 @@ class Bender(Tools):
                 if self.files['config.json']['lazy']:
                     if tmpOptions['subnet'] not in self.files['history.json']: 
                         #Filter minBytes
-                        if line['bytes'] < self.files['config.json']['minBytes']: continue
+                        if line['bytes'] < self.files['config.json']['minBytes']: 
+                            logging.info(f"minBytes threshold not hit for {line['ip_dst']} skipping")
+                            continue
                         self.files['history.json'][tmpOptions['subnet']] = {}
                     deadline = int(datetime.now().timestamp()) + 300
                     self.files['history.json'][tmpOptions['subnet']] = {'ip':line['ip_dst'],'port':line['port_dst'],'bytes':line['bytes'],'lastBytes':line['bytes'],'rounds':0,'expiry':deadline}
