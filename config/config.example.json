@@ -12,7 +12,7 @@
     "32163,55497,57976,40551":{"name":"blizzard","ignore":false,"ports":true,"loadBalancing":true,"route":"/24"}
   },
   "ignorePorts": [80,443],
-  "minBytes":"1000",
+  "minBytes":1000,
   "ignoreSubnets": [],
   "threads": 30,
   "rounds":15,
